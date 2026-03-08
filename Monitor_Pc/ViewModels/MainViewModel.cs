@@ -14,6 +14,7 @@ namespace Monitor_Pc.ViewModels
         private readonly Computer _computer;
         private readonly UpdateVisitor _updateVisitor;
         private readonly DispatcherTimer _timer;
+        private readonly CpuFallbackTelemetry _cpuFallbackTelemetry;
 
         public ObservableCollection<HardwareItem> HardwareItems { get; } = new ObservableCollection<HardwareItem>();
 
@@ -52,6 +53,7 @@ namespace Monitor_Pc.ViewModels
             }
 
             _updateVisitor = new UpdateVisitor();
+            _cpuFallbackTelemetry = new CpuFallbackTelemetry();
 
             _timer = new DispatcherTimer
             {
@@ -78,6 +80,12 @@ namespace Monitor_Pc.ViewModels
             foreach (var hardware in _computer.Hardware)
             {
                 ProcessHardwareRecursive(hardware, ref highestTemp, ref totalCpuLoad);
+            }
+
+            foreach (var cpuItem in HardwareItems.Where(h => h.HardwareType == "Cpu"))
+            {
+                ApplyCpuFallbackSensors(cpuItem);
+                cpuItem.RefreshGroups();
             }
 
             // Summary priority: ONLY update if we found non-zero values
@@ -162,6 +170,47 @@ namespace Monitor_Pc.ViewModels
             return type == "Cpu" || type.Contains("Gpu");
         }
 
+
+        private void ApplyCpuFallbackSensors(HardwareItem cpuItem)
+        {
+            bool hasClock = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Clock.ToString() && s.IsValid && s.Value > 100);
+            bool hasPower = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Power.ToString() && s.IsValid && s.Value > 0.5f);
+            bool hasTemp = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Temperature.ToString() && s.IsValid && s.Value > 1f);
+
+            if (!hasClock && _cpuFallbackTelemetry.TryReadClockMhz(out var clockMhz))
+            {
+                UpsertFallbackSensor(cpuItem, "CPU Clock (Fallback)", SensorType.Clock, clockMhz);
+            }
+
+            if (!hasPower && _cpuFallbackTelemetry.TryReadPackagePower(out var watts))
+            {
+                UpsertFallbackSensor(cpuItem, "CPU Package Power (Estimated)", SensorType.Power, watts);
+            }
+
+            if (!hasTemp && _cpuFallbackTelemetry.TryReadTemperature(out var tempC))
+            {
+                UpsertFallbackSensor(cpuItem, "CPU Temperature (Fallback)", SensorType.Temperature, tempC);
+            }
+        }
+
+        private static void UpsertFallbackSensor(HardwareItem item, string name, SensorType sensorType, float value)
+        {
+            var sensorTypeName = sensorType.ToString();
+            var existing = item.Sensors.FirstOrDefault(s => s.Name == name && s.SensorType == sensorTypeName);
+            if (existing == null)
+            {
+                existing = new HardwareSensor
+                {
+                    Name = name,
+                    SensorType = sensorTypeName,
+                    IsMotherboardSource = false
+                };
+                item.Sensors.Add(existing);
+            }
+
+            existing.Value = value;
+        }
+
         private void UpdateSensors(HardwareItem item, ISensor[] sensors, bool fromMotherboard)
         {
             var filteredSensors = sensors.Where(s => 
@@ -175,6 +224,17 @@ namespace Monitor_Pc.ViewModels
             foreach (var sensor in filteredSensors)
             {
                 var existingSensor = item.Sensors.FirstOrDefault(s => s.Name == sensor.Name && s.SensorType == sensor.SensorType.ToString());
+
+                bool shouldIgnoreZeroCpuMetric = item.HardwareType == "Cpu" &&
+                                                 (sensor.SensorType == SensorType.Clock ||
+                                                  sensor.SensorType == SensorType.Power ||
+                                                  sensor.SensorType == SensorType.Temperature) &&
+                                                 (!sensor.Value.HasValue || sensor.Value <= 0);
+
+                if (shouldIgnoreZeroCpuMetric)
+                {
+                    continue;
+                }
                 
                 // QUALITY GATE:
                 // 1. Never overwrite a valid NATIVE sensor (CPU) with a Motherboard placeholder (which are often 0).
@@ -206,6 +266,7 @@ namespace Monitor_Pc.ViewModels
         public void Dispose()
         {
             _timer.Stop();
+            _cpuFallbackTelemetry.Dispose();
             _computer.Close();
         }
     }

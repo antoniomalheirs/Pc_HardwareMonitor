@@ -47,7 +47,7 @@ namespace Monitor_Pc.Models
                 else if (SensorType == "Clock")
                 {
                     FormattedValue = value.Value >= 1000 ? $"{value.Value / 1000f:F2} GHz" : $"{value.Value:F0} MHz";
-                    ValuePercentage = Math.Clamp(value.Value / 5000f * 1000f, 0, 100);
+                    ValuePercentage = Math.Clamp(value.Value / 5500f * 100f, 0, 100);
                 }
                 else if (SensorType == "Voltage")
                 {
