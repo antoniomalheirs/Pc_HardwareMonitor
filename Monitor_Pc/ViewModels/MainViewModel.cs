@@ -15,6 +15,7 @@ namespace Monitor_Pc.ViewModels
         private readonly UpdateVisitor _updateVisitor;
         private readonly DispatcherTimer _timer;
         private readonly CpuFallbackTelemetry _cpuFallbackTelemetry;
+        private readonly HwInfoSharedMemoryTelemetry _hwInfoTelemetry;
 
         public ObservableCollection<HardwareItem> HardwareItems { get; } = new ObservableCollection<HardwareItem>();
 
@@ -54,6 +55,7 @@ namespace Monitor_Pc.ViewModels
 
             _updateVisitor = new UpdateVisitor();
             _cpuFallbackTelemetry = new CpuFallbackTelemetry();
+            _hwInfoTelemetry = new HwInfoSharedMemoryTelemetry();
 
             _timer = new DispatcherTimer
             {
@@ -87,6 +89,8 @@ namespace Monitor_Pc.ViewModels
                 ApplyCpuFallbackSensors(cpuItem);
                 cpuItem.RefreshGroups();
             }
+
+            ApplyHwInfoSensors(ref highestTemp, ref totalCpuLoad);
 
             // Summary priority: ONLY update if we found non-zero values
             if (highestTemp > 0) MaxTemp = $"{highestTemp:F0}°";
@@ -222,6 +226,145 @@ namespace Monitor_Pc.ViewModels
             }
         }
 
+        private void ApplyCpuFallbackSensors(HardwareItem cpuItem)
+        {
+            UpsertCpuFallbackSensor(cpuItem, "CPU Package (Fallback)", "Temperature", _cpuFallbackTelemetry.TryReadTemperature);
+            UpsertCpuFallbackSensor(cpuItem, "CPU Effective Clock (Fallback)", "Clock", _cpuFallbackTelemetry.TryReadClockMhz);
+            UpsertCpuFallbackSensor(cpuItem, "CPU Package Power (Fallback)", "Power", _cpuFallbackTelemetry.TryReadPackagePower);
+        }
+
+        private static void UpsertCpuFallbackSensor(HardwareItem cpuItem, string sensorName, string sensorType, TryReadMetric readMetric)
+        {
+            if (!readMetric(out var value) || value <= 0)
+            {
+                return;
+            }
+
+            var sensor = cpuItem.Sensors.FirstOrDefault(s => s.Name == sensorName && s.SensorType == sensorType);
+            if (sensor == null)
+            {
+                cpuItem.Sensors.Add(new HardwareSensor
+                {
+                    Name = sensorName,
+                    SensorType = sensorType,
+                    Value = value
+                });
+
+                return;
+            }
+
+            sensor.Value = value;
+        }
+
+        private void ApplyHwInfoSensors(ref float highestTemp, ref float totalCpuLoad)
+        {
+            if (!_hwInfoTelemetry.TryReadSnapshot(out var readings) || readings.Count == 0)
+            {
+                return;
+            }
+
+            var cpuItem = HardwareItems.FirstOrDefault(h => h.HardwareType == "Cpu");
+            if (cpuItem != null)
+            {
+                ApplyHwInfoReading(cpuItem, readings, "CPU Package Temperature (HWiNFO)", "Temperature", out var cpuTemp,
+                    "cpu", "package", "tctl", "tdie", "die", "ccd");
+                ApplyHwInfoReading(cpuItem, readings, "CPU Total Usage (HWiNFO)", "Load", out var cpuLoad,
+                    "cpu total", "total cpu usage", "total usage", "processor total");
+                ApplyHwInfoReading(cpuItem, readings, "CPU Effective Clock (HWiNFO)", "Clock", out _,
+                    "effective clock", "core clock", "average effective clock");
+                ApplyHwInfoReading(cpuItem, readings, "CPU Package Power (HWiNFO)", "Power", out _,
+                    "cpu package power", "package power", "cpu total power", "ppt");
+                ApplyHwInfoReading(cpuItem, readings, "CPU Core Voltage (HWiNFO)", "Voltage", out _,
+                    "vcore", "core voltage", "cpu core voltage", "svi2");
+
+                if (cpuTemp > 0)
+                {
+                    highestTemp = Math.Max(highestTemp, cpuTemp);
+                }
+
+                if (cpuLoad > 0)
+                {
+                    totalCpuLoad = Math.Max(totalCpuLoad, cpuLoad);
+                }
+
+                cpuItem.RefreshGroups();
+            }
+
+            foreach (var gpuItem in HardwareItems.Where(h => h.HardwareType.StartsWith("Gpu", StringComparison.OrdinalIgnoreCase)))
+            {
+                var gpuName = gpuItem.Name;
+                ApplyHwInfoReading(gpuItem, readings, "GPU Core Temperature (HWiNFO)", "Temperature", out _,
+                    gpuName, "gpu", "core temperature", "gpu temperature");
+                ApplyHwInfoReading(gpuItem, readings, "GPU Core Load (HWiNFO)", "Load", out _,
+                    gpuName, "gpu", "core load", "gpu usage");
+                ApplyHwInfoReading(gpuItem, readings, "GPU Core Clock (HWiNFO)", "Clock", out _,
+                    gpuName, "gpu", "core clock", "gpu clock");
+                ApplyHwInfoReading(gpuItem, readings, "GPU Power (HWiNFO)", "Power", out _,
+                    gpuName, "gpu", "gpu power", "total board power");
+                ApplyHwInfoReading(gpuItem, readings, "GPU Fan (HWiNFO)", "Fan", out _,
+                    gpuName, "gpu", "fan", "gpu fan");
+
+                gpuItem.RefreshGroups();
+            }
+        }
+
+        private static void ApplyHwInfoReading(
+            HardwareItem item,
+            IReadOnlyList<HwInfoReading> readings,
+            string targetName,
+            string targetType,
+            out float value,
+            params string[] keywords)
+        {
+            value = 0;
+
+            var reading = readings
+                .Where(r => r.Value > 0)
+                .Where(r => r.HasKeywords(keywords))
+                .OrderByDescending(r => r.Value)
+                .FirstOrDefault();
+
+            if (reading == null)
+            {
+                return;
+            }
+
+            value = NormalizeValue(reading, targetType);
+            if (value <= 0)
+            {
+                return;
+            }
+
+            var sensor = item.Sensors.FirstOrDefault(s => s.Name == targetName && s.SensorType == targetType);
+            if (sensor == null)
+            {
+                item.Sensors.Add(new HardwareSensor
+                {
+                    Name = targetName,
+                    SensorType = targetType,
+                    Value = value
+                });
+                return;
+            }
+
+            sensor.Value = value;
+        }
+
+        private static float NormalizeValue(HwInfoReading reading, string targetType)
+        {
+            if (targetType == "Clock" && reading.Unit.Contains("GHz", StringComparison.OrdinalIgnoreCase))
+            {
+                return reading.Value * 1000f;
+            }
+
+            if (targetType == "Temperature" && reading.Unit.Contains("F", StringComparison.OrdinalIgnoreCase))
+            {
+                return (reading.Value - 32f) * (5f / 9f);
+            }
+
+            return reading.Value;
+        }
+
         private static bool IsPreferredCpuTemperature(string sensorName)
         {
             return sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
@@ -243,7 +386,10 @@ namespace Monitor_Pc.ViewModels
         {
             _timer.Stop();
             _cpuFallbackTelemetry.Dispose();
+            _hwInfoTelemetry.Dispose();
             _computer.Close();
         }
+
+        private delegate bool TryReadMetric(out float value);
     }
 }
