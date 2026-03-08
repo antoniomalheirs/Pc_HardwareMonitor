@@ -261,7 +261,55 @@
                                     <!-- SENSOR LISTS (Pro Table View) -->
                                     <Border Grid.Row="1" Padding="25">
                                         <StackPanel>
-                                            
+                                            <Border Visibility="{Binding IsCpu, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                    Background="#0D00F2FF" BorderBrush="#3300F2FF" BorderThickness="1"
+                                                    CornerRadius="14" Padding="16" Margin="0,0,0,20">
+                                                <StackPanel>
+                                                    <TextBlock Text="CPU TELEMETRIA (HWiNFO)" FontSize="9" FontWeight="Black" Foreground="#66FFFFFF" Margin="0,0,0,12"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <StackPanel Margin="0,0,12,12">
+                                                            <TextBlock Text="CPU LOAD TOTAL" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CpuTotalLoad}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentPurple}" Margin="0,3,0,6"/>
+                                                            <ProgressBar Value="{Binding CpuTotalLoadPercentage}" Height="5" Background="#12FFFFFF" Foreground="{StaticResource AccentPurple}" BorderThickness="0"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Column="1" Margin="12,0,0,12">
+                                                            <TextBlock Text="TEMPERATURA PACKAGE" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CpuPackageTemp}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentRed}" Margin="0,3,0,6"/>
+                                                            <ProgressBar Value="{Binding CpuPackageTempPercentage}" Height="5" Background="#12FFFFFF" Foreground="{StaticResource AccentRed}" BorderThickness="0"/>
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Row="1" Margin="0,0,12,0">
+                                                            <TextBlock Text="FREQUÊNCIA MÉDIA" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding CpuAverageClock}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentCiano}" Margin="0,3,0,0"/>
+                                                        </StackPanel>
+
+                                                        <Grid Grid.Row="1" Grid.Column="1" Margin="12,0,0,0">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Margin="0,0,8,0">
+                                                                <TextBlock Text="CONSUMO PACKAGE" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding CpuPackagePower}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentOrange}" Margin="0,3,0,0"/>
+                                                            </StackPanel>
+                                                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                                <TextBlock Text="VOLTAGEM CORE" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding CpuCoreVoltage}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,3,0,0"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
 
                                             <!-- RESOURCE UTILIZATION (Compact Grid for high core counts) -->
                                             <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,30">
