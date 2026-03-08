@@ -216,7 +216,7 @@ namespace Monitor_Pc.Models
             }
         }
 
-        private bool IsCriticalSensor(string name)
+        private static bool IsCriticalSensor(string name)
         {
             string n = name.ToLower();
             return n.Contains("package") || n.Contains("total") || n.Contains("tctl") ||
