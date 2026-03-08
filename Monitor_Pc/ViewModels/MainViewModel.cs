@@ -175,6 +175,17 @@ namespace Monitor_Pc.ViewModels
             foreach (var sensor in filteredSensors)
             {
                 var existingSensor = item.Sensors.FirstOrDefault(s => s.Name == sensor.Name && s.SensorType == sensor.SensorType.ToString());
+
+                bool shouldIgnoreZeroCpuMetric = item.HardwareType == "Cpu" &&
+                                                 (sensor.SensorType == SensorType.Clock ||
+                                                  sensor.SensorType == SensorType.Power ||
+                                                  sensor.SensorType == SensorType.Temperature) &&
+                                                 (!sensor.Value.HasValue || sensor.Value <= 0);
+
+                if (shouldIgnoreZeroCpuMetric)
+                {
+                    continue;
+                }
                 
                 // QUALITY GATE:
                 // 1. Never overwrite a valid NATIVE sensor (CPU) with a Motherboard placeholder (which are often 0).

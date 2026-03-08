@@ -81,6 +81,7 @@ namespace Monitor_Pc.Models
         {
             // Strict filter: Hide nulls and junk/idle data
             var query = Sensors.Where(s => s.SensorType == type && s.IsValid && IsUsefulSensor(s));
+            bool isCpuCard = HardwareType == "Cpu";
 
             // Restoration & Noise Filtering
             if (type == "Load")
@@ -97,8 +98,13 @@ namespace Monitor_Pc.Models
                 query = query.Where(s => IsCriticalSensor(s.Name) || (s.Value > 0 && !s.Name.Contains("VID")));
             }
 
+            if (isCpuCard && (type == "Clock" || type == "Temperature" || type == "Power"))
+            {
+                query = query.Where(s => IsReadableCpuMetric(s, type));
+            }
+
             var targetSensors = query
-                                .OrderByDescending(s => IsCriticalSensor(s.Name))
+                                .OrderByDescending(s => isCpuCard ? GetCpuSensorPriority(type, s.Name) : (IsCriticalSensor(s.Name) ? 1 : 0))
                                 .ThenBy(s => s.Name.Contains("Core") ? GetCoreNumber(s.Name) : 999) 
                                 .ThenByDescending(s => type == "Temperature" || type == "Load" || type == "Clock" ? s.Value : 0)
                                 .ToList();
@@ -161,6 +167,67 @@ namespace Monitor_Pc.Models
         {
             // Only purely peripheral engines
             return name.Contains("D3D VR") || name.Contains("D3D Security") || name.Contains("D3D Overlay") || name.Contains("Encode");
+        }
+
+        private static bool IsReadableCpuMetric(HardwareSensor sensor, string type)
+        {
+            if (!sensor.Value.HasValue || sensor.Value <= 0.1f)
+            {
+                return false;
+            }
+
+            if (type == "Temperature")
+            {
+                var lowerName = sensor.Name.ToLower();
+                if (lowerName.Contains("fahrenheit") || lowerName.Contains("°f") || lowerName.Contains("farenheit"))
+                {
+                    return false;
+                }
+
+                return sensor.Value <= 125;
+            }
+
+            if (type == "Clock")
+            {
+                return sensor.Value >= 100;
+            }
+
+            if (type == "Power")
+            {
+                return sensor.Value >= 0.5f;
+            }
+
+            return true;
+        }
+
+        private static int GetCpuSensorPriority(string type, string name)
+        {
+            var n = name.ToLower();
+
+            if (type == "Temperature")
+            {
+                if (n.Contains("tctl") || n.Contains("tdie") || n.Contains("package")) return 4;
+                if (n.Contains("average") || n.Contains("avg")) return 3;
+                if (n.Contains("core max") || n.Contains("max")) return 2;
+                return 1;
+            }
+
+            if (type == "Clock")
+            {
+                if (n.Contains("effective") || n.Contains("average") || n.Contains("core #")) return 4;
+                if (n.Contains("core")) return 3;
+                if (n.Contains("bus") || n.Contains("fabric")) return 1;
+                return 2;
+            }
+
+            if (type == "Power")
+            {
+                if (n.Contains("package") || n.Contains("cpu package") || n.Contains("smu")) return 4;
+                if (n.Contains("ppt") || n.Contains("core")) return 3;
+                return 1;
+            }
+
+            return IsCriticalSensor(name) ? 1 : 0;
         }
     }
 }
