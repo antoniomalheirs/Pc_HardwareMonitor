@@ -114,12 +114,12 @@ namespace Monitor_Pc.Models
         private void RefreshCpuOverview()
         {
             var preferredLoad = PickPreferredSensor(Loads,
-                "Total CPU", "CPU Total", "Total", "Package", "Core Max");
+                "(HWiNFO)", "Total CPU", "CPU Total", "Total", "Package", "Core Max");
             CpuTotalLoad = preferredLoad?.FormattedValue ?? "--";
             CpuTotalLoadPercentage = preferredLoad?.ValuePercentage ?? 0;
 
             var preferredTemp = PickPreferredSensor(Temperatures,
-                "Package", "Tctl", "Tdie", "Core (Tctl/Tdie)", "Average");
+                "(HWiNFO)", "Package", "Tctl", "Tdie", "Core (Tctl/Tdie)", "Average");
             CpuPackageTemp = preferredTemp?.FormattedValue ?? "--";
             CpuPackageTempPercentage = preferredTemp?.ValuePercentage ?? 0;
 
@@ -146,11 +146,11 @@ namespace Monitor_Pc.Models
             }
 
             var preferredPower = PickPreferredSensor(Power,
-                "Package", "SMU", "Core", "PPT", "CPU");
+                "(HWiNFO)", "Package", "SMU", "Core", "PPT", "CPU");
             CpuPackagePower = preferredPower?.FormattedValue ?? "--";
 
             var preferredVoltage = PickPreferredSensor(Voltages,
-                "Vcore", "Core", "SVI2", "CPU", "VID");
+                "(HWiNFO)", "Vcore", "Core", "SVI2", "CPU", "VID");
             CpuCoreVoltage = preferredVoltage?.FormattedValue ?? "--";
         }
 
@@ -188,6 +188,14 @@ namespace Monitor_Pc.Models
             {
                 query = query.Where(s => IsReadableCpuMetric(s, type));
             }
+            if (isCpuCard && (type == "Load" || type == "Clock" || type == "Power" || type == "Temperature" || type == "Voltage"))
+            {
+                var hwInfoOnly = query.Where(s => IsHwInfoSensor(s.Name)).ToList();
+                if (hwInfoOnly.Count > 0)
+                {
+                    query = hwInfoOnly;
+                }
+            }
 
             var targetSensors = query
                                 .OrderByDescending(s => isCpuCard ? GetCpuSensorPriority(type, s.Name) : (IsCriticalSensor(s.Name) ? 1 : 0))
@@ -195,6 +203,7 @@ namespace Monitor_Pc.Models
                                 .OrderByDescending(s => IsCriticalSensor(s.Name))
                                 .ThenBy(s => s.Name.Contains("Core") ? GetCoreNumber(s.Name) : 999)
                                 .ThenByDescending(s => type == "Temperature" || type == "Load" || type == "Clock" ? s.Value : 0)
+                                .Take(isCpuCard ? GetCpuSectionLimit(type) : 18)
                                 .ToList();
 
             // sync items
@@ -214,6 +223,25 @@ namespace Monitor_Pc.Models
             {
                 group.RemoveAt(group.Count - 1);
             }
+        }
+
+        private static bool IsHwInfoSensor(string name)
+        {
+            return name.Contains("(HWiNFO)", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int GetCpuSectionLimit(string type)
+        {
+            return type switch
+            {
+                "Load" => 6,
+                "Clock" => 6,
+                "Power" => 4,
+                "Temperature" => 4,
+                "Voltage" => 3,
+                "Fan" => 2,
+                _ => 6
+            };
         }
 
         private static bool IsCriticalSensor(string name)
