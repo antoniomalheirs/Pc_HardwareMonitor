@@ -56,6 +56,29 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
+
+        <Style x:Key="SectionHeaderLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#73FFFFFF"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style x:Key="SensorNameLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#B3FFFFFF"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="MaxWidth" Value="170"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="SensorValueLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
         <!-- Button Styles -->
         <Style x:Key="TitleBarButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -188,7 +211,7 @@
                         <Border Background="#0DFFFFFF" CornerRadius="16" Padding="25,12" BorderBrush="#1AFFFFFF" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="MAX THERMAL" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                <TextBlock Text="{Binding HighestTemp}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentRed}"/>
+                                <TextBlock Text="{Binding MaxTemp}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentRed}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -196,7 +219,7 @@
             </Border>
 
             <!-- CONTENT SCROLL -->
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="40,10,40,40">
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="40,10,40,40">
                 <ItemsControl ItemsSource="{Binding HardwareItems}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -213,17 +236,26 @@
                                     </Grid.RowDefinitions>
 
                                     <!-- ITEM HEADER -->
-                                    <Border Background="#03FFFFFF" CornerRadius="20,20,0,0" Padding="25,20">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Grid>
-                                                <Ellipse Width="40" Height="40" Fill="{StaticResource AccentCiano}" Opacity="0.05"/>
-                                                <TextBlock Text="{Binding Icon}" Style="{StaticResource HeaderIcon}" FontSize="20" Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Grid>
-                                            <StackPanel Margin="20,0,0,0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF"/>
-                                                <TextBlock Text="{Binding HardwareType}" FontSize="10" Foreground="#22FFFFFF" FontWeight="Black"/>
+                                    <Border Background="#06FFFFFF" CornerRadius="20,20,0,0" Padding="22,18" BorderBrush="#10FFFFFF" BorderThickness="0,0,0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Grid>
+                                                    <Ellipse Width="40" Height="40" Fill="{StaticResource AccentCiano}" Opacity="0.08"/>
+                                                    <TextBlock Text="{Binding Icon}" Style="{StaticResource HeaderIcon}" FontSize="20" Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Grid>
+                                                <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" Foreground="#FFFFFF"/>
+                                                    <TextBlock Text="Resumo de sensores em tempo real" FontSize="11" Foreground="#66FFFFFF"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                        </StackPanel>
+                                            <Border Grid.Column="1" Background="#0DFFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding HardwareType}" FontSize="10" Foreground="#C8FFFFFF" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </Grid>
                                     </Border>
 
                                     <!-- SENSOR LISTS (Pro Table View) -->
@@ -231,7 +263,7 @@
                                         <StackPanel>
                                             <!-- RESOURCE UTILIZATION (Compact Grid for high core counts) -->
                                             <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,30">
-                                                <TextBlock Text="RESOURCE UTILIZATION" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,18"/>
+                                                <TextBlock Text="Uso" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,14"/>
                                                 <ItemsControl ItemsSource="{Binding Loads}">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
@@ -265,13 +297,13 @@
                                                 <!-- LEFT COLUMN: Physical Stats -->
                                                 <StackPanel Grid.Column="0" Margin="0,0,18,0">
                                                     <StackPanel Visibility="{Binding HasClocks, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="CORE CLOCKS" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,15"/>
+                                                        <TextBlock Text="Frequência" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
                                                         <ItemsControl ItemsSource="{Binding Clocks}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#50FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" FontSize="12" Foreground="#FFFFFF" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="#FFFFFF"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -279,13 +311,13 @@
                                                     </StackPanel>
 
                                                     <StackPanel Visibility="{Binding HasPower, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="POWER CONSUMPTION" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,15"/>
+                                                        <TextBlock Text="Consumo de energia" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
                                                         <ItemsControl ItemsSource="{Binding Power}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#50FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" FontSize="12" Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentCiano}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -293,13 +325,13 @@
                                                     </StackPanel>
 
                                                     <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="SYSTEM FANS" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,15"/>
+                                                        <TextBlock Text="Ventoinhas" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
                                                         <ItemsControl ItemsSource="{Binding Fans}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#50FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" FontSize="12" Foreground="{StaticResource AccentGreen}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentGreen}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -310,13 +342,13 @@
                                                 <!-- RIGHT COLUMN: Thermal & Electric -->
                                                 <StackPanel Grid.Column="1" Margin="18,0,0,0">
                                                     <StackPanel Visibility="{Binding HasTemperatures, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="HEAT SENSORS" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,15"/>
+                                                        <TextBlock Text="Temperatura" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
                                                         <ItemsControl ItemsSource="{Binding Temperatures}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#50FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" FontSize="12" Foreground="{StaticResource AccentRed}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentRed}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -324,13 +356,13 @@
                                                     </StackPanel>
 
                                                     <StackPanel Visibility="{Binding HasVoltages, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="VOLTAGE RAILS" FontSize="9" FontWeight="Black" Foreground="#20FFFFFF" Margin="0,0,0,15"/>
+                                                        <TextBlock Text="Voltagem" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
                                                         <ItemsControl ItemsSource="{Binding Voltages}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#50FFFFFF" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" FontSize="12" Foreground="{StaticResource AccentOrange}" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentOrange}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
