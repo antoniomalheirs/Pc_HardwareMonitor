@@ -258,8 +258,7 @@
 
                                                         <StackPanel Grid.Row="1" Margin="0,0,12,0">
                                                             <TextBlock Text="AVERAGE CORE CLOCK" FontSize="10" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuAverageClock}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentCiano}" Margin="0,3,0,6"/>
-                                                            <ProgressBar Value="{Binding CpuAverageClockPercentage}" Height="5" Background="#12FFFFFF" Foreground="{StaticResource AccentCiano}" BorderThickness="0"/>
+                                                            <TextBlock Text="{Binding CpuAverageClock}" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentCiano}" Margin="0,3,0,0"/>
                                                         </StackPanel>
 
                                                         <Grid Grid.Row="1" Grid.Column="1" Margin="12,0,0,0">

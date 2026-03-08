@@ -113,39 +113,24 @@ namespace Monitor_Pc.Models
 
         private void RefreshCpuOverview()
         {
-            var preferredLoad = PickPreferredSensor(
-                Sensors.Where(s => s.SensorType == "Load"),
+            var preferredLoad = PickPreferredSensor(Loads,
                 "Total CPU", "CPU Total", "Total", "Package", "Core Max");
             CpuTotalLoad = preferredLoad?.FormattedValue ?? "--";
             CpuTotalLoadPercentage = preferredLoad?.ValuePercentage ?? 0;
 
-            var preferredTemp = PickPreferredSensor(
-                Sensors.Where(s => s.SensorType == "Temperature"),
+            var preferredTemp = PickPreferredSensor(Temperatures,
                 "Package", "Tctl", "Tdie", "Core (Tctl/Tdie)", "Average");
             CpuPackageTemp = preferredTemp?.FormattedValue ?? "--";
             CpuPackageTempPercentage = preferredTemp?.ValuePercentage ?? 0;
 
-            var cpuClockSensors = Sensors
-                .Where(s => s.SensorType == "Clock")
-                .Where(s => s.IsValid && s.Value > 0)
-                .ToList();
-
-            var averageClock = cpuClockSensors
+            var averageClock = Clocks
                 .Where(s => s.Name.Contains("Core", System.StringComparison.OrdinalIgnoreCase) ||
                             s.Name.Contains("Effective", System.StringComparison.OrdinalIgnoreCase) ||
                             s.Name.Contains("Average", System.StringComparison.OrdinalIgnoreCase))
+                .Where(s => s.IsValid && s.Value > 0)
                 .Select(s => s.Value!.Value)
                 .DefaultIfEmpty()
                 .Average();
-
-            if (averageClock <= 0)
-            {
-                // fallback when vendors expose only package/bus clocks
-                averageClock = cpuClockSensors
-                    .Select(s => s.Value!.Value)
-                    .DefaultIfEmpty()
-                    .Average();
-            }
 
             if (averageClock > 0)
             {
@@ -160,13 +145,11 @@ namespace Monitor_Pc.Models
                 CpuAverageClockPercentage = 0;
             }
 
-            var preferredPower = PickPreferredSensor(
-                Sensors.Where(s => s.SensorType == "Power"),
+            var preferredPower = PickPreferredSensor(Power,
                 "Package", "SMU", "Core", "PPT", "CPU");
             CpuPackagePower = preferredPower?.FormattedValue ?? "--";
 
-            var preferredVoltage = PickPreferredSensor(
-                Sensors.Where(s => s.SensorType == "Voltage"),
+            var preferredVoltage = PickPreferredSensor(Voltages,
                 "Vcore", "Core", "SVI2", "CPU", "VID");
             CpuCoreVoltage = preferredVoltage?.FormattedValue ?? "--";
         }
@@ -174,9 +157,8 @@ namespace Monitor_Pc.Models
         private static HardwareSensor? PickPreferredSensor(IEnumerable<HardwareSensor> source, params string[] keywords)
         {
             return source
-                .Where(s => s.IsValid)
-                .OrderByDescending(s => keywords.Count(k => s.Name.Contains(k, System.StringComparison.OrdinalIgnoreCase)))
-                .ThenByDescending(s => s.Value > 0)
+                .Where(s => s.IsValid && s.Value > 0)
+                .OrderByDescending(s => keywords.Any(k => s.Name.Contains(k, System.StringComparison.OrdinalIgnoreCase)))
                 .ThenByDescending(s => s.Value)
                 .FirstOrDefault();
         }
