@@ -14,6 +14,7 @@ namespace Monitor_Pc.ViewModels
         private readonly Computer _computer;
         private readonly UpdateVisitor _updateVisitor;
         private readonly DispatcherTimer _timer;
+        private readonly CpuFallbackTelemetry _cpuFallbackTelemetry;
 
         public ObservableCollection<HardwareItem> HardwareItems { get; } = new ObservableCollection<HardwareItem>();
 
@@ -52,6 +53,7 @@ namespace Monitor_Pc.ViewModels
             }
 
             _updateVisitor = new UpdateVisitor();
+            _cpuFallbackTelemetry = new CpuFallbackTelemetry();
 
             _timer = new DispatcherTimer
             {
@@ -78,6 +80,12 @@ namespace Monitor_Pc.ViewModels
             foreach (var hardware in _computer.Hardware)
             {
                 ProcessHardwareRecursive(hardware, ref highestTemp, ref totalCpuLoad);
+            }
+
+            foreach (var cpuItem in HardwareItems.Where(h => h.HardwareType == "Cpu"))
+            {
+                ApplyCpuFallbackSensors(cpuItem);
+                cpuItem.RefreshGroups();
             }
 
             // Summary priority: ONLY update if we found non-zero values
@@ -234,6 +242,7 @@ namespace Monitor_Pc.ViewModels
         public void Dispose()
         {
             _timer.Stop();
+            _cpuFallbackTelemetry.Dispose();
             _computer.Close();
         }
     }
