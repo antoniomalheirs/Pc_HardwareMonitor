@@ -98,6 +98,15 @@ namespace Monitor_Pc.ViewModels
                 if (isMotherboard)
                 {
                     targetItem = HardwareItems.FirstOrDefault(h => h.HardwareType == "Cpu");
+                    if (targetItem == null)
+                    {
+                        targetItem = new HardwareItem
+                        {
+                            Name = "CPU",
+                            HardwareType = "Cpu"
+                        };
+                        HardwareItems.Add(targetItem);
+                    }
                 }
                 else
                 {
