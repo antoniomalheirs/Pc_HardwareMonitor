@@ -14,8 +14,37 @@ namespace Monitor_Pc.Models
         [ObservableProperty]
         private string icon = ""; // Default generic icon
 
+        [ObservableProperty]
+        private bool isCpu;
+
+        [ObservableProperty]
+        private string cpuTotalLoad = "--";
+
+        [ObservableProperty]
+        private double cpuTotalLoadPercentage;
+
+        [ObservableProperty]
+        private string cpuPackageTemp = "--";
+
+        [ObservableProperty]
+        private double cpuPackageTempPercentage;
+
+        [ObservableProperty]
+        private string cpuAverageClock = "--";
+
+        [ObservableProperty]
+        private double cpuAverageClockPercentage;
+
+        [ObservableProperty]
+        private string cpuPackagePower = "--";
+
+        [ObservableProperty]
+        private string cpuCoreVoltage = "--";
+
         partial void OnHardwareTypeChanged(string value)
         {
+            IsCpu = value == "Cpu";
+
             Icon = value switch
             {
                 "Cpu" => "",
@@ -75,6 +104,63 @@ namespace Monitor_Pc.Models
             HasVoltages = Voltages.Count > 0;
             HasPower = Power.Count > 0;
             HasFans = Fans.Count > 0;
+
+            if (IsCpu)
+            {
+                RefreshCpuOverview();
+            }
+        }
+
+        private void RefreshCpuOverview()
+        {
+            var preferredLoad = PickPreferredSensor(Loads,
+                "Total CPU", "CPU Total", "Total", "Package", "Core Max");
+            CpuTotalLoad = preferredLoad?.FormattedValue ?? "--";
+            CpuTotalLoadPercentage = preferredLoad?.ValuePercentage ?? 0;
+
+            var preferredTemp = PickPreferredSensor(Temperatures,
+                "Package", "Tctl", "Tdie", "Core (Tctl/Tdie)", "Average");
+            CpuPackageTemp = preferredTemp?.FormattedValue ?? "--";
+            CpuPackageTempPercentage = preferredTemp?.ValuePercentage ?? 0;
+
+            var averageClock = Clocks
+                .Where(s => s.Name.Contains("Core", System.StringComparison.OrdinalIgnoreCase) ||
+                            s.Name.Contains("Effective", System.StringComparison.OrdinalIgnoreCase) ||
+                            s.Name.Contains("Average", System.StringComparison.OrdinalIgnoreCase))
+                .Where(s => s.IsValid && s.Value > 0)
+                .Select(s => s.Value!.Value)
+                .DefaultIfEmpty()
+                .Average();
+
+            if (averageClock > 0)
+            {
+                CpuAverageClock = averageClock >= 1000
+                    ? $"{averageClock / 1000f:F2} GHz"
+                    : $"{averageClock:F0} MHz";
+                CpuAverageClockPercentage = System.Math.Clamp(averageClock / 5500f * 100, 0, 100);
+            }
+            else
+            {
+                CpuAverageClock = "--";
+                CpuAverageClockPercentage = 0;
+            }
+
+            var preferredPower = PickPreferredSensor(Power,
+                "Package", "SMU", "Core", "PPT", "CPU");
+            CpuPackagePower = preferredPower?.FormattedValue ?? "--";
+
+            var preferredVoltage = PickPreferredSensor(Voltages,
+                "Vcore", "Core", "SVI2", "CPU", "VID");
+            CpuCoreVoltage = preferredVoltage?.FormattedValue ?? "--";
+        }
+
+        private static HardwareSensor? PickPreferredSensor(IEnumerable<HardwareSensor> source, params string[] keywords)
+        {
+            return source
+                .Where(s => s.IsValid && s.Value > 0)
+                .OrderByDescending(s => keywords.Any(k => s.Name.Contains(k, System.StringComparison.OrdinalIgnoreCase)))
+                .ThenByDescending(s => s.Value)
+                .FirstOrDefault();
         }
 
         private void UpdateGroup(ObservableCollection<HardwareSensor> group, string type)
@@ -99,7 +185,7 @@ namespace Monitor_Pc.Models
 
             var targetSensors = query
                                 .OrderByDescending(s => IsCriticalSensor(s.Name))
-                                .ThenBy(s => s.Name.Contains("Core") ? GetCoreNumber(s.Name) : 999) 
+                                .ThenBy(s => s.Name.Contains("Core") ? GetCoreNumber(s.Name) : 999)
                                 .ThenByDescending(s => type == "Temperature" || type == "Load" || type == "Clock" ? s.Value : 0)
                                 .ToList();
 
@@ -125,7 +211,7 @@ namespace Monitor_Pc.Models
         private bool IsCriticalSensor(string name)
         {
             string n = name.ToLower();
-            return n.Contains("package") || n.Contains("total") || n.Contains("tctl") || 
+            return n.Contains("package") || n.Contains("total") || n.Contains("tctl") ||
                    n.Contains("tdie") || n.Contains("avg") || n.Contains("max") ||
                    n.Contains("svi2") || n.Contains("vcore") || n.Contains("effective") ||
                    n.Contains("smu power") || n.Contains("package power");
@@ -134,7 +220,7 @@ namespace Monitor_Pc.Models
         private bool IsUsefulSensor(HardwareSensor s)
         {
             if (!s.IsValid) return false;
-            
+
             // Critical sensors always stay visible to confirm they exist
             if (IsCriticalSensor(s.Name)) return true;
 
