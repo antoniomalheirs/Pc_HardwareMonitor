@@ -268,15 +268,15 @@ namespace Monitor_Pc.ViewModels
             if (cpuItem != null)
             {
                 ApplyHwInfoReading(cpuItem, readings, "CPU Package Temperature (HWiNFO)", "Temperature", out var cpuTemp,
-                    "cpu", "package", "temperature");
+                    "cpu", "package", "tctl", "tdie", "die", "ccd");
                 ApplyHwInfoReading(cpuItem, readings, "CPU Total Usage (HWiNFO)", "Load", out var cpuLoad,
-                    "cpu", "total", "usage");
+                    "cpu total", "total cpu usage", "total usage", "processor total");
                 ApplyHwInfoReading(cpuItem, readings, "CPU Effective Clock (HWiNFO)", "Clock", out _,
-                    "cpu", "effective", "clock");
+                    "effective clock", "core clock", "average effective clock");
                 ApplyHwInfoReading(cpuItem, readings, "CPU Package Power (HWiNFO)", "Power", out _,
-                    "cpu", "package", "power");
+                    "cpu package power", "package power", "cpu total power", "ppt");
                 ApplyHwInfoReading(cpuItem, readings, "CPU Core Voltage (HWiNFO)", "Voltage", out _,
-                    "cpu", "core", "voltage");
+                    "vcore", "core voltage", "cpu core voltage", "svi2");
 
                 if (cpuTemp > 0)
                 {
@@ -295,15 +295,15 @@ namespace Monitor_Pc.ViewModels
             {
                 var gpuName = gpuItem.Name;
                 ApplyHwInfoReading(gpuItem, readings, "GPU Core Temperature (HWiNFO)", "Temperature", out _,
-                    gpuName, "gpu", "core", "temperature");
+                    gpuName, "gpu", "core temperature", "gpu temperature");
                 ApplyHwInfoReading(gpuItem, readings, "GPU Core Load (HWiNFO)", "Load", out _,
-                    gpuName, "gpu", "core", "load");
+                    gpuName, "gpu", "core load", "gpu usage");
                 ApplyHwInfoReading(gpuItem, readings, "GPU Core Clock (HWiNFO)", "Clock", out _,
-                    gpuName, "gpu", "core", "clock");
+                    gpuName, "gpu", "core clock", "gpu clock");
                 ApplyHwInfoReading(gpuItem, readings, "GPU Power (HWiNFO)", "Power", out _,
-                    gpuName, "gpu", "power");
+                    gpuName, "gpu", "gpu power", "total board power");
                 ApplyHwInfoReading(gpuItem, readings, "GPU Fan (HWiNFO)", "Fan", out _,
-                    gpuName, "gpu", "fan");
+                    gpuName, "gpu", "fan", "gpu fan");
 
                 gpuItem.RefreshGroups();
             }
@@ -319,7 +319,12 @@ namespace Monitor_Pc.ViewModels
         {
             value = 0;
 
-            var reading = FindBestHwInfoReading(readings, keywords);
+            var reading = readings
+                .Where(r => r.Value > 0)
+                .Where(r => r.HasKeywords(keywords))
+                .OrderByDescending(r => r.Value)
+                .FirstOrDefault();
+
             if (reading == null)
             {
                 return;
@@ -331,39 +336,15 @@ namespace Monitor_Pc.ViewModels
                 return;
             }
 
-            UpsertSensor(item, targetName, targetType, value);
-        }
-
-        private static HwInfoReading? FindBestHwInfoReading(IEnumerable<HwInfoReading> readings, params string[] keywords)
-        {
-            return readings
-                .Where(r => r.Value > 0)
-                .Select(r => new
-                {
-                    Reading = r,
-                    Score = keywords.Count(keyword =>
-                        r.Label.Contains(keyword, StringComparison.OrdinalIgnoreCase) ||
-                        r.SensorName.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                })
-                .Where(entry => entry.Score > 0)
-                .OrderByDescending(entry => entry.Score)
-                .ThenByDescending(entry => entry.Reading.Value)
-                .Select(entry => entry.Reading)
-                .FirstOrDefault();
-        }
-
-        private static void UpsertSensor(HardwareItem item, string sensorName, string sensorType, float value)
-        {
-            var sensor = item.Sensors.FirstOrDefault(s => s.Name == sensorName && s.SensorType == sensorType);
+            var sensor = item.Sensors.FirstOrDefault(s => s.Name == targetName && s.SensorType == targetType);
             if (sensor == null)
             {
                 item.Sensors.Add(new HardwareSensor
                 {
-                    Name = sensorName,
-                    SensorType = sensorType,
+                    Name = targetName,
+                    SensorType = targetType,
                     Value = value
                 });
-
                 return;
             }
 
