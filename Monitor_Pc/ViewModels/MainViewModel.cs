@@ -106,6 +106,15 @@ namespace Monitor_Pc.ViewModels
                 if (isMotherboard)
                 {
                     targetItem = HardwareItems.FirstOrDefault(h => h.HardwareType == "Cpu");
+                    if (targetItem == null)
+                    {
+                        targetItem = new HardwareItem
+                        {
+                            Name = "CPU",
+                            HardwareType = "Cpu"
+                        };
+                        HardwareItems.Add(targetItem);
+                    }
                 }
                 else
                 {
@@ -139,23 +148,19 @@ namespace Monitor_Pc.ViewModels
             // Summary data collection
             foreach (var sensor in hardware.Sensors)
             {
-                if (sensor.SensorType == SensorType.Temperature)
+                if (!sensor.Value.HasValue || sensor.Value <= 0)
                 {
-                    // Prioritize Package/Tctl for Ryzen
-                    if (sensor.Value > 0 && (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl") || 
-                        sensor.Name.Contains("Avg") || sensor.Name == "Core (Tctl/Tdie)"))
-                    {
-                         if (sensor.Value > highestTemp) highestTemp = sensor.Value ?? 0;
-                    }
+                    continue;
                 }
-                
-                if (sensor.SensorType == SensorType.Load)
+
+                if (sensor.SensorType == SensorType.Temperature && IsPreferredCpuTemperature(sensor.Name))
                 {
-                    if (sensor.Value > 0 && (sensor.Name.Contains("Total") || sensor.Name.Contains("Package") || 
-                        sensor.Name == "CPU Core Max" || sensor.Name == "GPU Core"))
-                    {
-                        if (sensor.Value > totalCpuLoad) totalCpuLoad = sensor.Value ?? 0;
-                    }
+                    highestTemp = Math.Max(highestTemp, sensor.Value.Value);
+                }
+
+                if (sensor.SensorType == SensorType.Load && IsPreferredCpuLoad(sensor.Name))
+                {
+                    totalCpuLoad = Math.Max(totalCpuLoad, sensor.Value.Value);
                 }
             }
 
@@ -163,52 +168,6 @@ namespace Monitor_Pc.ViewModels
             {
                 ProcessHardwareRecursive(subHardware, ref highestTemp, ref totalCpuLoad);
             }
-        }
-
-        private bool IsTargetHardware(string type)
-        {
-            return type == "Cpu" || type.Contains("Gpu");
-        }
-
-
-        private void ApplyCpuFallbackSensors(HardwareItem cpuItem)
-        {
-            bool hasClock = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Clock.ToString() && s.IsValid && s.Value > 100);
-            bool hasPower = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Power.ToString() && s.IsValid && s.Value > 0.5f);
-            bool hasTemp = cpuItem.Sensors.Any(s => s.SensorType == SensorType.Temperature.ToString() && s.IsValid && s.Value > 1f);
-
-            if (!hasClock && _cpuFallbackTelemetry.TryReadClockMhz(out var clockMhz))
-            {
-                UpsertFallbackSensor(cpuItem, "CPU Clock (Fallback)", SensorType.Clock, clockMhz);
-            }
-
-            if (!hasPower && _cpuFallbackTelemetry.TryReadPackagePower(out var watts))
-            {
-                UpsertFallbackSensor(cpuItem, "CPU Package Power (Estimated)", SensorType.Power, watts);
-            }
-
-            if (!hasTemp && _cpuFallbackTelemetry.TryReadTemperature(out var tempC))
-            {
-                UpsertFallbackSensor(cpuItem, "CPU Temperature (Fallback)", SensorType.Temperature, tempC);
-            }
-        }
-
-        private static void UpsertFallbackSensor(HardwareItem item, string name, SensorType sensorType, float value)
-        {
-            var sensorTypeName = sensorType.ToString();
-            var existing = item.Sensors.FirstOrDefault(s => s.Name == name && s.SensorType == sensorTypeName);
-            if (existing == null)
-            {
-                existing = new HardwareSensor
-                {
-                    Name = name,
-                    SensorType = sensorTypeName,
-                    IsMotherboardSource = false
-                };
-                item.Sensors.Add(existing);
-            }
-
-            existing.Value = value;
         }
 
         private void UpdateSensors(HardwareItem item, ISensor[] sensors, bool fromMotherboard)
@@ -261,6 +220,23 @@ namespace Monitor_Pc.ViewModels
                 existingSensor.IsMotherboardSource = fromMotherboard;
                 existingSensor.Value = sensor.Value;
             }
+        }
+
+        private static bool IsPreferredCpuTemperature(string sensorName)
+        {
+            return sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Tctl", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Tdie", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Average", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Core (Tctl/Tdie)", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsPreferredCpuLoad(string sensorName)
+        {
+            return sensorName.Contains("Total", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("CPU Total", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Core Max", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose()
