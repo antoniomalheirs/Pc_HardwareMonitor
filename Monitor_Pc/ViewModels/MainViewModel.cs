@@ -98,6 +98,15 @@ namespace Monitor_Pc.ViewModels
                 if (isMotherboard)
                 {
                     targetItem = HardwareItems.FirstOrDefault(h => h.HardwareType == "Cpu");
+                    if (targetItem == null)
+                    {
+                        targetItem = new HardwareItem
+                        {
+                            Name = "CPU",
+                            HardwareType = "Cpu"
+                        };
+                        HardwareItems.Add(targetItem);
+                    }
                 }
                 else
                 {
@@ -131,23 +140,19 @@ namespace Monitor_Pc.ViewModels
             // Summary data collection
             foreach (var sensor in hardware.Sensors)
             {
-                if (sensor.SensorType == SensorType.Temperature)
+                if (!sensor.Value.HasValue || sensor.Value <= 0)
                 {
-                    // Prioritize Package/Tctl for Ryzen
-                    if (sensor.Value > 0 && (sensor.Name.Contains("Package") || sensor.Name.Contains("Tctl") || 
-                        sensor.Name.Contains("Avg") || sensor.Name == "Core (Tctl/Tdie)"))
-                    {
-                         if (sensor.Value > highestTemp) highestTemp = sensor.Value ?? 0;
-                    }
+                    continue;
                 }
-                
-                if (sensor.SensorType == SensorType.Load)
+
+                if (sensor.SensorType == SensorType.Temperature && IsPreferredCpuTemperature(sensor.Name))
                 {
-                    if (sensor.Value > 0 && (sensor.Name.Contains("Total") || sensor.Name.Contains("Package") || 
-                        sensor.Name == "CPU Core Max" || sensor.Name == "GPU Core"))
-                    {
-                        if (sensor.Value > totalCpuLoad) totalCpuLoad = sensor.Value ?? 0;
-                    }
+                    highestTemp = Math.Max(highestTemp, sensor.Value.Value);
+                }
+
+                if (sensor.SensorType == SensorType.Load && IsPreferredCpuLoad(sensor.Name))
+                {
+                    totalCpuLoad = Math.Max(totalCpuLoad, sensor.Value.Value);
                 }
             }
 
@@ -155,11 +160,6 @@ namespace Monitor_Pc.ViewModels
             {
                 ProcessHardwareRecursive(subHardware, ref highestTemp, ref totalCpuLoad);
             }
-        }
-
-        private bool IsTargetHardware(string type)
-        {
-            return type == "Cpu" || type.Contains("Gpu");
         }
 
         private void UpdateSensors(HardwareItem item, ISensor[] sensors, bool fromMotherboard)
@@ -212,6 +212,23 @@ namespace Monitor_Pc.ViewModels
                 existingSensor.IsMotherboardSource = fromMotherboard;
                 existingSensor.Value = sensor.Value;
             }
+        }
+
+        private static bool IsPreferredCpuTemperature(string sensorName)
+        {
+            return sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Tctl", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Tdie", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Average", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Core (Tctl/Tdie)", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsPreferredCpuLoad(string sensorName)
+        {
+            return sensorName.Contains("Total", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("CPU Total", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
+                   sensorName.Contains("Core Max", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose()
