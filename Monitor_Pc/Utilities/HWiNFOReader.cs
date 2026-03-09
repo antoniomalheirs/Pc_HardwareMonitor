@@ -90,8 +90,19 @@ namespace Monitor_Pc.Utilities
 
     public sealed class HWiNFOReader : IDisposable
     {
-        private const string SHM_NAME   = "Global\\HWiNFO_SENS_SM2";
-        private const string MUTEX_NAME = "Global\\HWiNFO_SM2_MUTEX";
+        private static readonly string[] SHM_NAMES =
+        {
+            "Global\\HWiNFO_SENS_SM2",
+            "HWiNFO_SENS_SM2",
+            "Local\\HWiNFO_SENS_SM2"
+        };
+
+        private static readonly string[] MUTEX_NAMES =
+        {
+            "Global\\HWiNFO_SM2_MUTEX",
+            "HWiNFO_SM2_MUTEX",
+            "Local\\HWiNFO_SM2_MUTEX"
+        };
 
         // ✅ VALOR CORRETO: bytes "HWiS" em memória lidos como uint32 little-endian
         //    = 0x53 << 24 | 0x69 << 16 | 0x57 << 8 | 0x48 = 0x53695748
@@ -103,8 +114,10 @@ namespace Monitor_Pc.Utilities
         private bool                      _open;
         private bool                      _disposed;
 
-        private List<HWiNFO_Reading> _readings    = new();
-        private List<string>         _sensorNames = new();
+        private List<HWiNFO_Reading> _readings      = new();
+        private List<string>         _sensorNames   = new();
+        private string               _activeShmName = SHM_NAMES[0];
+        private string?              _activeMutexName;
 
         public bool   IsAvailable       { get; private set; }
         public string DiagnosticMessage { get; private set; } = "";
@@ -114,38 +127,48 @@ namespace Monitor_Pc.Utilities
         public bool TryOpen()
         {
             if (_open) return true;
-            try
+
+            Exception? lastError = null;
+            foreach (var shmName in SHM_NAMES)
             {
-                _mmf      = MemoryMappedFile.OpenExisting(SHM_NAME, MemoryMappedFileRights.Read);
-                _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
-                _open     = true;
-                DiagnosticMessage = "";
-                return true;
+                try
+                {
+                    _mmf      = MemoryMappedFile.OpenExisting(shmName, MemoryMappedFileRights.Read);
+                    _accessor = _mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+                    _activeShmName = shmName;
+                    _open     = true;
+                    DiagnosticMessage = "";
+                    return true;
+                }
+                catch (Exception ex) when (ex is FileNotFoundException or UnauthorizedAccessException)
+                {
+                    lastError = ex;
+                    Close();
+                }
             }
-            catch (FileNotFoundException)
+
+            if (lastError is UnauthorizedAccessException)
             {
                 DiagnosticMessage =
-                    "Memória compartilhada não encontrada.\n" +
-                    "No HWiNFO64: Settings → General\n" +
-                    "→ ✔ Shared Memory Support → OK\n" +
-                    "Depois feche e reabra os Sensores.";
-                _open = false;
-                return false;
+                    "Acesso negado ao Shared Memory do HWiNFO.\n" +
+                    "Tente executar HWiNFO e este Monitor com o mesmo nível de privilégio\n" +
+                    "(ambos normal ou ambos Administrador).";
             }
-            catch (UnauthorizedAccessException)
+            else if (lastError is FileNotFoundException || lastError == null)
             {
                 DiagnosticMessage =
-                    "Acesso negado ao HWiNFO_SENS_SM2.\n" +
-                    "Execute o Monitor como Administrador.";
-                _open = false;
-                return false;
+                    "Memória compartilhada do HWiNFO não encontrada.\n" +
+                    "Nomes tentados: Global\\HWiNFO_SENS_SM2, HWiNFO_SENS_SM2, Local\\HWiNFO_SENS_SM2.\n" +
+                    "No HWiNFO64: Settings → General → ✔ Shared Memory Support.\n" +
+                    "Depois feche e reabra a janela de sensores do HWiNFO.";
             }
-            catch (Exception ex)
+            else
             {
-                DiagnosticMessage = $"Erro: {ex.GetType().Name}\n{ex.Message}";
-                _open = false;
-                return false;
+                DiagnosticMessage = $"Erro ao abrir SHM: {lastError.GetType().Name}\n{lastError.Message}";
             }
+
+            _open = false;
+            return false;
         }
 
         public void Close()
@@ -163,12 +186,22 @@ namespace Monitor_Pc.Utilities
 
             Mutex? hwMutex    = null;
             bool   mutexOwned = false;
-            try
+            _activeMutexName  = null;
+
+            foreach (var mutexName in MUTEX_NAMES)
             {
-                hwMutex    = Mutex.OpenExisting(MUTEX_NAME);
-                mutexOwned = hwMutex.WaitOne(300);
+                try
+                {
+                    hwMutex          = Mutex.OpenExisting(mutexName);
+                    mutexOwned       = hwMutex.WaitOne(300);
+                    _activeMutexName = mutexName;
+                    break;
+                }
+                catch
+                {
+                    /* mutex opcional — versões antigas do HWiNFO não exportam */
+                }
             }
-            catch { /* mutex opcional — versões antigas do HWiNFO não exportam */ }
 
             try   { return ReadSharedMemory(); }
             finally
@@ -190,6 +223,7 @@ namespace Monitor_Pc.Utilities
                     DiagnosticMessage =
                         $"Assinatura inválida: 0x{hdr.dwSignature:X8}\n" +
                         $"Esperado: 0x{SIGNATURE:X8}\n" +
+                        $"Segmento SHM ativo: {_activeShmName}\n" +
                         "HWiNFO pode estar reiniciando.\n" +
                         "Certifique-se de que o Shared Memory\n" +
                         "está ativado nas configurações.";
