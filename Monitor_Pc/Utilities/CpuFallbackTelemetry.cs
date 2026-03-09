@@ -101,12 +101,27 @@ namespace Monitor_Pc.Utilities
                     .Select(mo => Convert.ToSingle(mo["CurrentTemperature"] ?? 0f))
                     .Where(v => v > 0)
                     .Select(v => (v / 10f) - 273.15f)
-                    .DefaultIfEmpty()
-                    .Average();
-
-                if (temp > 0 && temp < 125)
+                    .DefaultIfEmpty(0f)
+                    .Max();
+ 
+                if (temp > 20 && temp < 125)
                 {
                     celsius = temp;
+                    return true;
+                }
+ 
+                // Second attempt: Win32_TemperatureProbe (often empty but worth a shot)
+                using var searcher2 = new ManagementObjectSearcher("SELECT CurrentReading FROM Win32_TemperatureProbe");
+                var temp2 = searcher2.Get()
+                    .Cast<ManagementObject>()
+                    .Select(mo => Convert.ToSingle(mo["CurrentReading"] ?? 0f))
+                    .Where(v => v > 0)
+                    .DefaultIfEmpty(0f)
+                    .Max();
+ 
+                if (temp2 > 20 && temp2 < 125)
+                {
+                    celsius = temp2;
                     return true;
                 }
             }

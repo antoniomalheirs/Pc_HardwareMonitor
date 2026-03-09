@@ -22,6 +22,12 @@ namespace Monitor_Pc.Models
         [ObservableProperty]
         private string formattedValue = "--";
 
+        [ObservableProperty]
+        private HardwareSensor? linkedSensor;
+
+        [ObservableProperty]
+        private string combinedValue = "--";
+
         public bool IsValid => Value.HasValue && !float.IsNaN(Value.Value) && !float.IsInfinity(Value.Value);
 
         partial void OnValueChanged(float? value)
@@ -46,7 +52,7 @@ namespace Monitor_Pc.Models
                 }
                 else if (SensorType == "Clock")
                 {
-                    FormattedValue = value.Value >= 1000 ? $"{value.Value / 1000f:F2} GHz" : $"{value.Value:F0} MHz";
+                    FormattedValue = value.Value >= 1000 ? $"{value.Value / 1000f:F3} GHz" : $"{value.Value:F1} MHz";
                     ValuePercentage = Math.Clamp(value.Value / 5500f * 100f, 0, 100);
                 }
                 else if (SensorType == "Voltage")
@@ -64,11 +70,47 @@ namespace Monitor_Pc.Models
                     FormattedValue = $"{value.Value:F0} RPM";
                     ValuePercentage = 0;
                 }
-                else
+                else if (SensorType == "Current")
                 {
-                    FormattedValue = value.Value.ToString("F2");
+                    FormattedValue = $"{value.Value:F1} A";
                     ValuePercentage = 0;
                 }
+                else if (SensorType == "Data")
+                {
+                    FormattedValue = $"{value.Value:F3} GB/s";
+                    ValuePercentage = 0;
+                }
+                else
+                {
+                    FormattedValue = value.Value.ToString("F1");
+                    if (SensorType == "Load")
+                    {
+                        ValuePercentage = Math.Clamp(value.Value, 0, 100);
+                        FormattedValue += " %";
+                    }
+                    else
+                    {
+                        ValuePercentage = 0;
+                    }
+                }
+                UpdateCombinedValue();
+            }
+        }
+
+        partial void OnLinkedSensorChanged(HardwareSensor? value)
+        {
+            UpdateCombinedValue();
+        }
+
+        private void UpdateCombinedValue()
+        {
+            if (LinkedSensor != null && LinkedSensor.IsValid)
+            {
+                CombinedValue = $"{FormattedValue} ({LinkedSensor.FormattedValue})";
+            }
+            else
+            {
+                CombinedValue = FormattedValue;
             }
         }
     }

@@ -6,6 +6,14 @@
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Zeca\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|c:\\users\\zeca\\desktop\\git\\monitor_pc\\monitor_pc\\utilities\\hwinfosharedmemorytelemetry.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|solutionrelative:monitor_pc\\utilities\\hwinfosharedmemorytelemetry.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|c:\\users\\zeca\\desktop\\git\\monitor_pc\\monitor_pc\\viewmodels\\mainviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|solutionrelative:monitor_pc\\viewmodels\\mainviewmodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|c:\\users\\zeca\\desktop\\git\\monitor_pc\\monitor_pc\\models\\hardwareitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{B744136D-F9ED-44FF-97BD-E4D09A4CAB92}|Monitor_Pc\\Monitor_Pc.csproj|solutionrelative:monitor_pc\\models\\hardwareitem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
@@ -17,7 +25,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -34,12 +42,38 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
+              "Title": "HwInfoSharedMemoryTelemetry.cs",
+              "DocumentMoniker": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Utilities\\HwInfoSharedMemoryTelemetry.cs",
+              "RelativeDocumentMoniker": "Monitor_Pc\\Utilities\\HwInfoSharedMemoryTelemetry.cs",
+              "ToolTip": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Utilities\\HwInfoSharedMemoryTelemetry.cs",
+              "RelativeToolTip": "Monitor_Pc\\Utilities\\HwInfoSharedMemoryTelemetry.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAqwAcAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-08T07:35:27.686Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "MainViewModel.cs",
+              "DocumentMoniker": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\ViewModels\\MainViewModel.cs",
+              "RelativeDocumentMoniker": "Monitor_Pc\\ViewModels\\MainViewModel.cs",
+              "ToolTip": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\ViewModels\\MainViewModel.cs",
+              "RelativeToolTip": "Monitor_Pc\\ViewModels\\MainViewModel.cs",
+              "ViewState": "AgIAAE4AAAAAAAAAAAASwFkAAAAxAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-08T07:08:22.377Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
               "Title": "HardwareItem.cs",
               "DocumentMoniker": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Models\\HardwareItem.cs",
               "RelativeDocumentMoniker": "Monitor_Pc\\Models\\HardwareItem.cs",
               "ToolTip": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Models\\HardwareItem.cs",
               "RelativeToolTip": "Monitor_Pc\\Models\\HardwareItem.cs",
-              "ViewState": "AgIAADgAAAAAAAAAAAArwEsAAAAXAAAAAAAAAA==",
+              "ViewState": "AgIAAIsBAAAAAAAAAAAWwKkBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-03-08T05:24:49.143Z",
               "EditorCaption": ""
@@ -50,12 +84,12 @@
               "Title": "XamlReader.cs",
               "DocumentMoniker": "C:\\Users\\Zeca\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs",
               "RelativeDocumentMoniker": "..\\..\\..\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs",
-              "ToolTip": "C:\\Users\\Zeca\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs [Somente Leitura]",
-              "RelativeToolTip": "..\\..\\..\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs [Somente Leitura]",
+              "ToolTip": "C:\\Users\\Zeca\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs",
+              "RelativeToolTip": "..\\..\\..\\AppData\\Local\\Temp\\.vsdbgsrc\\a2c8e1e784dd9d2cc211f086114d89c8eacc6df076f290e28c4559989e7d9562\\XamlReader.cs",
               "ViewState": "AgIAAPcBAAAAAAAAAAAUwP4BAAACAAAAAQAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-03-08T05:18:54.062Z",
-              "EditorCaption": " [Somente Leitura]"
+              "EditorCaption": ""
             }
           ]
         },

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "BpQPS1r6T1g=",
+  "dgSpecHash": "GY/omLmHtj4=",
   "success": true,
   "projectFilePath": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Monitor_Pc.csproj",
   "expectedPackageFiles": [
@@ -28,9 +28,13 @@
     "C:\\Users\\Zeca\\.nuget\\packages\\runtime.native.system.io.ports\\10.0.3\\runtime.native.system.io.ports.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\runtime.osx-arm64.runtime.native.system.io.ports\\10.0.3\\runtime.osx-arm64.runtime.native.system.io.ports.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\runtime.osx-x64.runtime.native.system.io.ports\\10.0.3\\runtime.osx-x64.runtime.native.system.io.ports.10.0.3.nupkg.sha512",
-    "C:\\Users\\Zeca\\.nuget\\packages\\system.codedom\\10.0.2\\system.codedom.10.0.2.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.codedom\\10.0.3\\system.codedom.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.configuration.configurationmanager\\10.0.3\\system.configuration.configurationmanager.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.diagnostics.eventlog\\10.0.3\\system.diagnostics.eventlog.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.diagnostics.performancecounter\\10.0.3\\system.diagnostics.performancecounter.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.io.ports\\10.0.3\\system.io.ports.10.0.3.nupkg.sha512",
-    "C:\\Users\\Zeca\\.nuget\\packages\\system.management\\10.0.2\\system.management.10.0.2.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.management\\10.0.3\\system.management.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.security.cryptography.protecteddata\\10.0.3\\system.security.cryptography.protecteddata.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.threading.accesscontrol\\10.0.3\\system.threading.accesscontrol.10.0.3.nupkg.sha512"
   ],
   "logs": []
