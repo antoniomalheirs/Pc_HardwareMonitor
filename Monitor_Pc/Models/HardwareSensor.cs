@@ -11,6 +11,9 @@ namespace Monitor_Pc.Models
         private string sensorType = string.Empty;
 
         [ObservableProperty]
+        private string sensorId = string.Empty;
+
+        [ObservableProperty]
         private float? value;
 
         [ObservableProperty]
