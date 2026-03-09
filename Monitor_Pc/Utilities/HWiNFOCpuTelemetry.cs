@@ -39,6 +39,8 @@ namespace Monitor_Pc.Utilities
         public double SocVoltage         { get; private set; }   // V  – VSOC  / SVI2 SoC
         public double VddpVoltage        { get; private set; }   // V
         public double VddgVoltage        { get; private set; }   // V
+        public IReadOnlyList<(string Name, double Volts)> CpuVoltages { get; private set; }
+            = Array.Empty<(string, double)>();
 
         // Power
         public double PackagePower       { get; private set; }   // W  – PPT / Package
@@ -169,8 +171,19 @@ namespace Monitor_Pc.Utilities
         {
             var volts = r.Where(x => x.Type == SENSOR_READING_TYPE.SENSOR_TYPE_VOLT).ToList();
 
+            var cpuVoltages = volts
+                .Where(IsCpuVoltageReading)
+                .OrderBy(x => x.Label)
+                .Select(x => ($"{x.SensorName} / {x.Label}", x.Value))
+                .ToList();
+            CpuVoltages = cpuVoltages;
+
+            var prioritizedVolts = cpuVoltages.Count > 0
+                ? volts.Where(IsCpuVoltageReading).ToList()
+                : volts;
+
             // Core voltage — SVI2 TFN Core, Vcore, CPU VDD, etc.
-            var coreV = volts.FirstOrDefault(x =>
+            var coreV = prioritizedVolts.FirstOrDefault(x =>
                 (x.Label.Contains("Core",  StringComparison.OrdinalIgnoreCase) &&
                  x.Label.Contains("SVI2",  StringComparison.OrdinalIgnoreCase)) ||
                 x.Label.Equals("CPU Core Voltage",  StringComparison.OrdinalIgnoreCase) ||
@@ -178,7 +191,7 @@ namespace Monitor_Pc.Utilities
                 x.Label.Contains("CPU VDD",         StringComparison.OrdinalIgnoreCase));
 
             // Fallback: any "Core" voltage that isn't static
-            coreV ??= volts.FirstOrDefault(x =>
+            coreV ??= prioritizedVolts.FirstOrDefault(x =>
                 x.Label.Contains("Core", StringComparison.OrdinalIgnoreCase) &&
                 x.Value > 0.1 && x.Value < 1.6 &&
                 Math.Abs(x.Value - 1.55) > 0.01);
@@ -186,18 +199,18 @@ namespace Monitor_Pc.Utilities
             if (coreV != null) CoreVoltage = coreV.Value;
 
             // SoC voltage
-            var socV = volts.FirstOrDefault(x =>
+            var socV = prioritizedVolts.FirstOrDefault(x =>
                 x.Label.Contains("SoC",  StringComparison.OrdinalIgnoreCase) ||
                 x.Label.Contains("VSOC", StringComparison.OrdinalIgnoreCase) ||
                 x.Label.Contains("VDDCR_SOC", StringComparison.OrdinalIgnoreCase));
             if (socV != null) SocVoltage = socV.Value;
 
             // VDDP
-            var vddp = volts.FirstOrDefault(x => x.Label.Contains("VDDP", StringComparison.OrdinalIgnoreCase));
+            var vddp = prioritizedVolts.FirstOrDefault(x => x.Label.Contains("VDDP", StringComparison.OrdinalIgnoreCase));
             if (vddp != null) VddpVoltage = vddp.Value;
 
             // VDDG
-            var vddg = volts.FirstOrDefault(x => x.Label.Contains("VDDG", StringComparison.OrdinalIgnoreCase));
+            var vddg = prioritizedVolts.FirstOrDefault(x => x.Label.Contains("VDDG", StringComparison.OrdinalIgnoreCase));
             if (vddg != null) VddgVoltage = vddg.Value;
         }
 
@@ -295,6 +308,23 @@ namespace Monitor_Pc.Utilities
             foreach (var kw in CpuSensorKeywords)
                 if (name.Contains(kw, StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        private static bool IsCpuVoltageReading(HWiNFO_Reading reading)
+        {
+            if (!reading.Unit.Contains("V", StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (IsCpuSensor(reading.SensorName)) return true;
+
+            string label = reading.Label;
+            return
+                label.Contains("CPU", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("Core", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("Vcore", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("SVI", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("VID", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("SoC", StringComparison.OrdinalIgnoreCase) ||
+                label.Contains("VDD", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose() => _reader.Dispose();
