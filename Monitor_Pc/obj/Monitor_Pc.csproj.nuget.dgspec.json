@@ -53,18 +53,6 @@
             "Hardware.Info": {
               "target": "Package",
               "version": "[101.1.1.1, )"
-            },
-            "LibreHardwareMonitorLib": {
-              "target": "Package",
-              "version": "[0.9.6, )"
-            },
-            "System.Diagnostics.PerformanceCounter": {
-              "target": "Package",
-              "version": "[10.0.3, )"
-            },
-            "System.Management": {
-              "target": "Package",
-              "version": "[10.0.3, )"
             }
           },
           "imports": [

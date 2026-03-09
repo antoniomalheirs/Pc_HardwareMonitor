@@ -1,14 +1,14 @@
-﻿<Window x:Class="Monitor_Pc.MainWindow"
+<Window x:Class="Monitor_Pc.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Monitor_Pc"
         xmlns:viewmodels="clr-namespace:Monitor_Pc.ViewModels"
         xmlns:converters="clr-namespace:Monitor_Pc.Converters"
         mc:Ignorable="d"
         Title="MONITOR PRO v4.0" Height="900" Width="1300"
-        Background="#08080C" Foreground="#FFFFFF" FontFamily="Segoe UI Variable, Segoe UI"
+        Background="#08080C" Foreground="#FFFFFF"
+        FontFamily="Segoe UI Variable, Segoe UI"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None" AllowsTransparency="False">
 
@@ -17,79 +17,64 @@
     </Window.DataContext>
 
     <Window.Resources>
-        <!-- Premium Colors -->
-        <SolidColorBrush x:Key="AccentCiano" Color="#00F2FF"/>
-        <SolidColorBrush x:Key="AccentPurple" Color="#BC00FF"/>
-        <SolidColorBrush x:Key="AccentOrange" Color="#FF9E00"/>
-        <SolidColorBrush x:Key="AccentRed" Color="#FF3D00"/>
-        <SolidColorBrush x:Key="AccentGreen" Color="#00E676"/>
-        <SolidColorBrush x:Key="CardBackground" Color="#12121A"/>
+        <SolidColorBrush x:Key="AccentCiano"       Color="#00F2FF"/>
+        <SolidColorBrush x:Key="AccentPurple"      Color="#BC00FF"/>
+        <SolidColorBrush x:Key="AccentOrange"      Color="#FF9E00"/>
+        <SolidColorBrush x:Key="AccentRed"         Color="#FF3D00"/>
+        <SolidColorBrush x:Key="AccentGreen"       Color="#00E676"/>
+        <SolidColorBrush x:Key="CardBackground"    Color="#12121A"/>
         <SolidColorBrush x:Key="SidebarBackground" Color="#0A0A0F"/>
 
-        <!-- Converters -->
-        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVis"/>
+        <BooleanToVisibilityConverter         x:Key="BoolToVis"/>
 
-        <!-- Glass Style -->
-        <Style x:Key="PremiumCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+        <!-- Card border -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background"      Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush"     Value="#1AFFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="20"/>
-            <Setter Property="Margin" Value="0,0,0,30"/>
+            <Setter Property="CornerRadius"    Value="20"/>
+            <Setter Property="Margin"          Value="0,0,20,20"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="BorderBrush" Value="#3300F2FF"/>
-                    <Setter Property="Background" Value="#161622"/>
+                    <Setter Property="Background"  Value="#161622"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Sensor Card Style -->
-        <Style x:Key="SensorTile" TargetType="Border">
-            <Setter Property="Background" Value="#0AFFFFFF"/>
-            <Setter Property="BorderThickness" Value="0,0,0,3"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="18,14"/>
-            <Setter Property="Margin" Value="0,0,15,15"/>
-            <Setter Property="Width" Value="180"/>
+        <!-- Section label (these are UI-only group labels, not sensor names) -->
+        <Style x:Key="GroupLabel" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="9"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="Foreground" Value="#44FFFFFF"/>
+            <Setter Property="Margin"     Value="0,0,0,8"/>
         </Style>
 
-        <Style x:Key="HeaderIcon" TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
-            <Setter Property="FontSize" Value="28"/>
+        <!-- Sensor name: shown exactly as HWiNFO sends -->
+        <Style x:Key="SensorName" TargetType="TextBlock">
+            <Setter Property="FontSize"          Value="11"/>
+            <Setter Property="Foreground"        Value="#BFFFFFFF"/>
+            <Setter Property="TextTrimming"      Value="CharacterEllipsis"/>
+            <Setter Property="MaxWidth"          Value="210"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-
-        <Style x:Key="SectionHeaderLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#73FFFFFF"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-        </Style>
-
-        <Style x:Key="SensorNameLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#B3FFFFFF"/>
-            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-            <Setter Property="MaxWidth" Value="170"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="SensorValueLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+        <!-- Sensor value -->
+        <Style x:Key="SensorValue" TargetType="TextBlock">
+            <Setter Property="FontSize"            Value="11"/>
+            <Setter Property="FontWeight"          Value="SemiBold"/>
             <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment"   Value="Center"/>
         </Style>
 
-        <!-- Button Styles -->
-        <Style x:Key="TitleBarButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#55FFFFFF"/>
-            <Setter Property="Width" Value="46"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="FontSize" Value="10"/>
+        <!-- Title bar buttons -->
+        <Style x:Key="TBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="#55FFFFFF"/>
+            <Setter Property="Width"           Value="46"/>
+            <Setter Property="Height"          Value="32"/>
+            <Setter Property="FontSize"        Value="10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -107,8 +92,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-
-        <Style x:Key="TitleBarCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource TitleBarButtonStyle}">
+        <Style x:Key="TBtnClose" BasedOn="{StaticResource TBtn}" TargetType="Button">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#E81123"/>
@@ -116,8 +100,6 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
-
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
     <Grid>
@@ -126,8 +108,9 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- SIDEBAR -->
-        <Border Grid.Column="0" Background="{StaticResource SidebarBackground}" BorderBrush="#0DFFFFFF" BorderThickness="0,0,1,0">
+        <!-- ═══════════ SIDEBAR ═══════════════════════════════════════════════ -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarBackground}"
+                BorderBrush="#0DFFFFFF" BorderThickness="0,0,1,0">
             <Grid Margin="30,50,30,40">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -136,75 +119,97 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Logo Section -->
                 <StackPanel Margin="0,0,0,60">
                     <Grid HorizontalAlignment="Left" Margin="0,0,0,20">
                         <Ellipse Width="48" Height="48" Fill="{StaticResource AccentPurple}" Opacity="0.15"/>
-                        <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="24"
+                                   Foreground="{StaticResource AccentCiano}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     <TextBlock Text="MONITOR" FontSize="22" FontWeight="Black"/>
                     <TextBlock Text="CORE ENGINE v4" FontSize="11" Foreground="#44FFFFFF" FontWeight="Bold" Margin="2,0,0,0"/>
                 </StackPanel>
 
-                <!-- Navigation -->
                 <StackPanel Grid.Row="1">
                     <TextBlock Text="WORKSPACE" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,20"/>
-                    <Border Background="#12FFFFFF" CornerRadius="14" Padding="20,16" Margin="0,0,0,12" BorderBrush="#1AFFFFFF" BorderThickness="1">
+                    <Border Background="#12FFFFFF" CornerRadius="14" Padding="20,16" Margin="0,0,0,12"
+                            BorderBrush="#1AFFFFFF" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="{StaticResource AccentCiano}" VerticalAlignment="Center"/>
+                            <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="20"
+                                       Foreground="{StaticResource AccentCiano}" VerticalAlignment="Center"/>
                             <TextBlock Text="Live Status" Margin="20,0,0,0" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <!-- Status Card -->
-                <Border Grid.Row="3" Padding="25" CornerRadius="20" Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
+                <!-- Source indicator — no custom converters needed -->
+                <Border Grid.Row="3" Padding="25" CornerRadius="20"
+                        Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="SENSORS STATUS" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
-                        <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="DATA SOURCE" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
+                        <!-- Green dot when HWiNFO active -->
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
                             <Ellipse Width="10" Height="10" Fill="{StaticResource AccentGreen}" VerticalAlignment="Center">
                                 <Ellipse.Effect>
-                                    <DropShadowEffect Color="{Binding Source={StaticResource AccentGreen}, Path=Color}" BlurRadius="12" ShadowDepth="0"/>
+                                    <DropShadowEffect Color="#00E676" BlurRadius="12" ShadowDepth="0"/>
                                 </Ellipse.Effect>
                             </Ellipse>
-                            <TextBlock Text="ADMIN ACTIVE" Margin="12,0,0,0" FontSize="12" FontWeight="Black" Foreground="{StaticResource AccentGreen}"/>
+                            <TextBlock Text="HWiNFO64 ATIVO" Margin="12,0,0,0" FontSize="12"
+                                       FontWeight="Black" Foreground="{StaticResource AccentGreen}"/>
+                        </StackPanel>
+                        <!-- Orange dot when fallback -->
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HwInfoActive}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource AccentOrange}" VerticalAlignment="Center"/>
+                            <TextBlock Text="SEM HWiNFO" Margin="12,0,0,0" FontSize="12"
+                                       FontWeight="Black" Foreground="{StaticResource AccentOrange}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>
         </Border>
 
-        <!-- MAIN AREA -->
+        <!-- ═══════════ MAIN ══════════════════════════════════════════════════ -->
         <Grid Grid.Column="1" Background="#08080C">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- Custom Title Bar Row -->
-                <RowDefinition Height="Auto"/> <!-- Header Bar Row -->
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- CUSTOM TITLE BAR / WINDOW CONTROLS -->
-            <Grid Grid.Row="0" Background="#10FFFFFF" Height="32" MouseLeftButtonDown="Header_MouseLeftButtonDown">
-                <TextBlock Text="MONITOR PRO v4.0" FontSize="11" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="25,0,0,0" FontWeight="Bold" IsHitTestVisible="False"/>
+            <!-- Title bar -->
+            <Grid Grid.Row="0" Background="#10FFFFFF" Height="32"
+                  MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <TextBlock Text="MONITOR PRO v4.0" FontSize="11" Foreground="#44FFFFFF"
+                           VerticalAlignment="Center" Margin="25,0,0,0" FontWeight="Bold" IsHitTestVisible="False"/>
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource TitleBarButtonStyle}" Content="─"/>
-                    <Button x:Name="BtnMaximize" Click="BtnMaximize_Click" Style="{StaticResource TitleBarButtonStyle}" Content="▢"/>
-                    <Button x:Name="BtnClose" Click="BtnClose_Click" Style="{StaticResource TitleBarCloseButtonStyle}" Content="✕"/>
+                    <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource TBtn}"    Content="─"/>
+                    <Button x:Name="BtnMaximize" Click="BtnMaximize_Click" Style="{StaticResource TBtn}"    Content="▢"/>
+                    <Button x:Name="BtnClose"    Click="BtnClose_Click"    Style="{StaticResource TBtnClose}" Content="✕"/>
                 </StackPanel>
             </Grid>
 
-            <!-- HEADER BAR -->
+            <!-- Header bar -->
             <Border Grid.Row="1" Padding="50,30,50,40" Background="#02FFFFFF">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    
                     <StackPanel>
-                        <TextBlock Text="Performance Hub" FontSize="32" FontWeight="SemiBold" Foreground="#FFFFFF"/>
-                        <TextBlock Text="Advanced processor and graphics analytics" FontSize="14" Foreground="#44FFFFFF" Margin="0,6,0,0"/>
+                        <TextBlock Text="Performance Hub" FontSize="32" FontWeight="SemiBold"/>
+                        <TextBlock Text="HWiNFO64 · dados em tempo real" FontSize="14" Foreground="#44FFFFFF" Margin="0,6,0,0"/>
                     </StackPanel>
-
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Border Background="#0DFFFFFF" CornerRadius="16" Padding="25,12" Margin="0,0,20,0" BorderBrush="#1AFFFFFF" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
@@ -214,7 +219,7 @@
                         </Border>
                         <Border Background="#0DFFFFFF" CornerRadius="16" Padding="25,12" BorderBrush="#1AFFFFFF" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="MAX THERMAL" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                                <TextBlock Text="MAX TEMP" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,15,0"/>
                                 <TextBlock Text="{Binding MaxTemp}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentRed}"/>
                             </StackPanel>
                         </Border>
@@ -222,8 +227,8 @@
                 </Grid>
             </Border>
 
-            <!-- CONTENT SCROLL -->
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="40,10,40,40">
+            <!-- ═══ SENSOR CARDS ═══════════════════════════════════════════════ -->
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="40,10,20,40">
                 <ItemsControl ItemsSource="{Binding HardwareItems}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -232,205 +237,67 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource PremiumCard}" Margin="0,0,20,20" VerticalAlignment="Top">
+                            <Border Style="{StaticResource Card}" VerticalAlignment="Top">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- ITEM HEADER -->
-                                    <Border Background="#06FFFFFF" CornerRadius="20,20,0,0" Padding="22,18" BorderBrush="#10FFFFFF" BorderThickness="0,0,0,1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Grid>
-                                                    <Ellipse Width="40" Height="40" Fill="{StaticResource AccentCiano}" Opacity="0.08"/>
-                                                    <TextBlock Text="{Binding Icon}" Style="{StaticResource HeaderIcon}" FontSize="20" Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Grid>
-                                                <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" Foreground="#FFFFFF"/>
-                                                    <TextBlock Text="Resumo de sensores em tempo real" FontSize="11" Foreground="#66FFFFFF"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <Border Grid.Column="1" Background="#0DFFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="12" Padding="10,4" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding HardwareType}" FontSize="10" Foreground="#C8FFFFFF" FontWeight="SemiBold"/>
-                                            </Border>
-                                        </Grid>
+                                    <!-- Card header: device name exactly as HWiNFO sends -->
+                                    <Border Background="#06FFFFFF" CornerRadius="20,20,0,0"
+                                            Padding="22,16" BorderBrush="#10FFFFFF" BorderThickness="0,0,0,1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Grid>
+                                                <Ellipse Width="38" Height="38" Fill="{StaticResource AccentCiano}" Opacity="0.08"/>
+                                                <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="18"
+                                                           Foreground="{StaticResource AccentCiano}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                       Margin="14,0,0,0" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+                                        </StackPanel>
                                     </Border>
 
-                                    <!-- SENSOR LISTS (Pro Table View) -->
-                                    <Border Grid.Row="1" Padding="25">
+                                    <!-- Sensor groups -->
+                                    <Border Grid.Row="1" Padding="22,16">
                                         <StackPanel>
-                                            <Border Visibility="{Binding IsCpu, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                    Background="#0D00F2FF" BorderBrush="#3300F2FF" BorderThickness="1"
-                                                    CornerRadius="14" Padding="16" Margin="0,0,0,20">
-                                                <StackPanel>
-                                                    <TextBlock Text="CPU TELEMETRIA AVANÇADA" FontSize="9" FontWeight="Black" Foreground="#66FFFFFF" Margin="0,0,0,12"/>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="Auto"/>
-                                                        </Grid.RowDefinitions>
 
-                                                        <!-- ROW 1: CORE STATS -->
-                                                        <StackPanel Margin="0,0,12,15">
-                                                            <TextBlock Text="CARGA TOTAL" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuTotalLoad}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentPurple}" Margin="0,2,0,4"/>
-                                                            <ProgressBar Value="{Binding CpuTotalLoadPercentage}" Height="3" Background="#12FFFFFF" Foreground="{StaticResource AccentPurple}" BorderThickness="0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Column="1" Margin="6,0,6,15">
-                                                            <TextBlock Text="PACKAGE TEMP" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuPackageTemp}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentRed}" Margin="0,2,0,4"/>
-                                                            <ProgressBar Value="{Binding CpuPackageTempPercentage}" Height="3" Background="#12FFFFFF" Foreground="{StaticResource AccentRed}" BorderThickness="0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Column="2" Margin="12,0,0,15">
-                                                            <TextBlock Text="CORE MAX TEMP" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuCoreMaxTemp}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentOrange}" Margin="0,2,0,4"/>
-                                                            <ProgressBar Value="{Binding CpuCoreMaxTempPercentage}" Height="3" Background="#12FFFFFF" Foreground="{StaticResource AccentOrange}" BorderThickness="0"/>
-                                                        </StackPanel>
-
-                                                        <!-- ROW 2: ELECTRICAL -->
-                                                        <StackPanel Grid.Row="1" Margin="0,0,12,15">
-                                                            <TextBlock Text="FREQ. MÉDIA" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuAverageClock}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentCiano}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,6,15">
-                                                            <TextBlock Text="VCORE (SVI2)" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuCoreVoltage}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="12,0,0,15">
-                                                            <TextBlock Text="CONSUMO PPT" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding CpuPpt}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentOrange}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <!-- ROW 3: ZEN/INTEL SPECIFIC -->
-                                                        <Border Grid.Row="2" Grid.ColumnSpan="3" Background="#08FFFFFF" CornerRadius="8" Padding="10,8" Margin="0,5,0,0">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <StackPanel Orientation="Horizontal">
-                                                                    <TextBlock Text="TDC:" FontSize="9" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding CpuTdc}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                    <TextBlock Text="EDC:" FontSize="9" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding CpuEdc}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                    <TextBlock Text="SOC:" FontSize="9" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding CpuSocVoltage}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" VerticalAlignment="Center" Opacity="0.9"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Center">
-                                                                    <TextBlock Text="VID:" FontSize="9" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding CpuVidVoltage}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" VerticalAlignment="Center" Opacity="0.8"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="4" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                                    <TextBlock Text="PL1/2:" FontSize="9" Foreground="#44FFFFFF" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                    <TextBlock Text="{Binding CpuPl1}" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
-                                                                </StackPanel>
-                                                            </Grid>
-                                                        </Border>
-                                                    </Grid>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- GPU TELEMETRIA AVANÇADA -->
-                                            <Border Visibility="{Binding IsGpu, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                                    Background="#0D00F2FF" BorderBrush="#3300F2FF" BorderThickness="1"
-                                                    CornerRadius="14" Padding="16" Margin="0,0,0,20">
-                                                <StackPanel>
-                                                    <TextBlock Text="GPU TELEMETRIA AVANÇADA" FontSize="9" FontWeight="Black" Foreground="#66FFFFFF" Margin="0,0,0,12"/>
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Grid.RowDefinitions>
-                                                            <RowDefinition Height="Auto"/>
-                                                            <RowDefinition Height="Auto"/>
-                                                        </Grid.RowDefinitions>
-
-                                                        <!-- ROW 1: CORE STATS -->
-                                                        <StackPanel Margin="0,0,12,15">
-                                                            <TextBlock Text="CARGA GPU" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding GpuLoad}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentPurple}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Column="1" Margin="6,0,6,15">
-                                                            <TextBlock Text="TEMP CORE" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding GpuCoreTemp}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentRed}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Column="2" Margin="12,0,0,15">
-                                                            <TextBlock Text="HOT SPOT" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding GpuHotSpotTemp}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentOrange}" Margin="0,2,0,0" HorizontalAlignment="Right"/>
-                                                        </StackPanel>
-
-                                                        <!-- ROW 2: ELECTRICAL -->
-                                                        <StackPanel Grid.Row="1" Margin="0,0,12,15">
-                                                            <TextBlock Text="VCORE GPU" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding GpuCoreVoltage}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,2,0,0"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="6,0,6,15">
-                                                            <TextBlock Text="VRAM VOLT" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding GpuMemVoltage}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,2,0,0" Opacity="0.9"/>
-                                                        </StackPanel>
-
-                                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="12,0,0,15">
-                                                            <TextBlock Text="SOC VOLT" FontSize="9" Foreground="#55FFFFFF" FontWeight="SemiBold" HorizontalAlignment="Right"/>
-                                                            <TextBlock Text="{Binding GpuSocVoltage}" FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentGreen}" Margin="0,2,0,0" HorizontalAlignment="Right" Opacity="0.8"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- RESOURCE UTILIZATION (Compact Grid for high core counts) -->
-                                            <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,30">
-                                                <TextBlock Text="Carga / Uso" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,14"/>
+                                            <!-- LOADS with progress bars -->
+                                            <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BoolToVis}}"
+                                                        Margin="0,0,0,16">
+                                                <TextBlock Text="CARGA / USO" Style="{StaticResource GroupLabel}"/>
                                                 <ItemsControl ItemsSource="{Binding Loads}">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
-                                                            <UniformGrid Columns="2" VerticalAlignment="Top"/>
+                                                            <UniformGrid Columns="2"/>
                                                         </ItemsPanelTemplate>
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Grid Margin="0,0,15,12">
+                                                            <Grid Margin="0,0,10,7">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="105"/>
+                                                                    <ColumnDefinition Width="Auto"/>
                                                                 </Grid.ColumnDefinitions>
                                                                 <StackPanel>
-                                                                    <TextBlock Text="{Binding Name}" FontSize="9" Foreground="#30FFFFFF" Margin="0,0,0,6" FontWeight="SemiBold"/>
-                                                                    <!-- LOAD BAR (Purple) -->
-                                                                    <ProgressBar Value="{Binding ValuePercentage}" Height="3" Background="#0AFFFFFF" Foreground="{StaticResource AccentPurple}" BorderThickness="0" Margin="0,0,0,3"/>
-                                                                    <!-- FREQ BAR (Ciano) -->
-                                                                    <ProgressBar Value="{Binding LinkedSensor.ValuePercentage}" Height="2" Background="#0AFFFFFF" Foreground="{StaticResource AccentCiano}" BorderThickness="0" Opacity="0.7" Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource SensorName}" FontSize="9" Foreground="#55FFFFFF"/>
+                                                                    <ProgressBar Value="{Binding ValuePercentage}" Height="3"
+                                                                                 Background="#0AFFFFFF" Foreground="{StaticResource AccentPurple}"
+                                                                                 BorderThickness="0" Margin="0,3,0,2"/>
+                                                                    <ProgressBar Value="{Binding LinkedSensor.ValuePercentage}" Height="2"
+                                                                                 Background="#0AFFFFFF" Foreground="{StaticResource AccentCiano}"
+                                                                                 BorderThickness="0" Opacity="0.7"
+                                                                                 Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVis}}"/>
                                                                 </StackPanel>
                                                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                                    <TextBlock Text="{Binding FormattedValue}" FontSize="10" Foreground="{StaticResource AccentPurple}" FontWeight="Black" HorizontalAlignment="Right"/>
-                                                                    <TextBlock Text="{Binding LinkedSensor.FormattedValue}" FontSize="9" Foreground="{StaticResource AccentCiano}" FontWeight="Bold" HorizontalAlignment="Right" Opacity="0.8" Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVisibilityConverter}}"/>
+                                                                    <TextBlock Text="{Binding FormattedValue}" FontSize="10"
+                                                                               Foreground="{StaticResource AccentPurple}" FontWeight="Black" HorizontalAlignment="Right"/>
+                                                                    <TextBlock Text="{Binding LinkedSensor.FormattedValue}" FontSize="9"
+                                                                               Foreground="{StaticResource AccentCiano}" FontWeight="Bold"
+                                                                               HorizontalAlignment="Right" Opacity="0.8"
+                                                                               Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVis}}"/>
                                                                 </StackPanel>
                                                             </Grid>
                                                         </DataTemplate>
@@ -444,82 +311,115 @@
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- LEFT COLUMN: Physical Stats -->
-                                                <StackPanel Grid.Column="0" Margin="0,0,18,0">
-                                                    <StackPanel Visibility="{Binding HasClocks, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="Frequência" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
+                                                <!-- LEFT col -->
+                                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+
+                                                    <StackPanel Visibility="{Binding HasClocks, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                                                        <TextBlock Text="FREQUÊNCIA" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Clocks}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="#FFFFFF"/>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="#FFFFFF"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
 
-                                                    <StackPanel Visibility="{Binding HasPower, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="Consumo de energia" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
+                                                    <StackPanel Visibility="{Binding HasPower, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                                                        <TextBlock Text="ENERGIA" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Power}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentCiano}"/>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentCiano}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
 
-                                                    <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="Ventoinhas" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
+                                                    <StackPanel Visibility="{Binding HasCurrent, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                                                        <TextBlock Text="CORRENTE" Style="{StaticResource GroupLabel}"/>
+                                                        <ItemsControl ItemsSource="{Binding Current}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <StackPanel Visibility="{Binding HasFactor, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                                                        <TextBlock Text="OUTROS" Style="{StaticResource GroupLabel}"/>
+                                                        <ItemsControl ItemsSource="{Binding Factor}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="#AAFFFFFF"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="VENTOINHAS" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Fans}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentGreen}"/>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
+
                                                 </StackPanel>
 
-                                                <!-- RIGHT COLUMN: Thermal & Electric -->
-                                                <StackPanel Grid.Column="1" Margin="18,0,0,0">
-                                                    <StackPanel Visibility="{Binding HasTemperatures, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,25">
-                                                        <TextBlock Text="Temperatura" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
+                                                <!-- RIGHT col -->
+                                                <StackPanel Grid.Column="1" Margin="14,0,0,0">
+
+                                                    <StackPanel Visibility="{Binding HasTemperatures, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
+                                                        <TextBlock Text="TEMPERATURA" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Temperatures}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentRed}"/>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentRed}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
 
-                                                    <StackPanel Visibility="{Binding HasVoltages, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="Voltagem" Style="{StaticResource SectionHeaderLabel}" Margin="0,0,0,12"/>
+                                                    <StackPanel Visibility="{Binding HasVoltages, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="VOLTAGEM" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Voltages}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,8">
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorNameLabel}" HorizontalAlignment="Left"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValueLabel}" Foreground="{StaticResource AccentOrange}"/>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentOrange}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
+
                                                 </StackPanel>
                                             </Grid>
+
                                         </StackPanel>
                                     </Border>
                                 </Grid>

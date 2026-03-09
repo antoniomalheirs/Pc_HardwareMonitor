@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
-using LibreHardwareMonitor.Hardware;
 using Monitor_Pc.Models;
 using Monitor_Pc.Utilities;
 
@@ -12,226 +11,281 @@ namespace Monitor_Pc.ViewModels
 {
     public partial class MainViewModel : ObservableObject, IDisposable
     {
-        private readonly Computer _computer;
-        private readonly UpdateVisitor _updateVisitor;
-        private readonly DispatcherTimer _timer;
-        private readonly CpuFallbackTelemetry _cpuFallbackTelemetry;
-        private readonly AmdTelemetryFix _amdFix;
+        private readonly DispatcherTimer      _timer;
+        private readonly HWiNFOReader         _reader   = new();
+        private readonly CpuFallbackTelemetry _fallback;
 
-        public ObservableCollection<HardwareItem> HardwareItems { get; } = new ObservableCollection<HardwareItem>();
+        public ObservableCollection<HardwareItem> HardwareItems { get; } = new();
 
-        [ObservableProperty]
-        private string maxTemp = "--";
-
-        [ObservableProperty]
-        private string ramUsage = "--";
-
-        [ObservableProperty]
-        private double ramPercentage;
-
-        [ObservableProperty]
-        private string cpuLoad = "--";
+        [ObservableProperty] private string maxTemp       = "--";
+        [ObservableProperty] private string cpuLoad       = "--";
+        [ObservableProperty] private string ramUsage      = "--";
+        [ObservableProperty] private double ramPercentage;
+        [ObservableProperty] private bool   hwInfoActive;
 
         public MainViewModel()
         {
-            _computer = new Computer
-            {
-                IsCpuEnabled = true,
-                IsGpuEnabled = true,
-                IsMemoryEnabled = true,
-                IsMotherboardEnabled = true, // Enable for background sensor access
-                IsControllerEnabled = true,
-                IsNetworkEnabled = true,
-                IsStorageEnabled = true
-            };
-            
-            try { _computer.Open(); } catch { }
-            
-            // Warm-up
-            _updateVisitor = new UpdateVisitor();
-            for (int i = 0; i < 2; i++) 
-            {
-                _computer.Accept(_updateVisitor);
-                System.Threading.Thread.Sleep(50);
-            }
+            _fallback = new CpuFallbackTelemetry();
 
-            _cpuFallbackTelemetry = new CpuFallbackTelemetry();
-            _amdFix = new AmdTelemetryFix();
-
-            _timer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1)
-            };
-            _timer.Tick += Timer_Tick;
-
-            UpdateHardwareData();
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _timer.Tick += (_, _) => UpdateAll();
+            UpdateAll();
             _timer.Start();
         }
 
-        private void Timer_Tick(object? sender, EventArgs e)
+        private void UpdateAll()
         {
-            UpdateHardwareData();
-        }
-
-        private void UpdateHardwareData()
-        {
-            try 
+            try
             {
-                _computer.Accept(_updateVisitor);
-                _amdFix.Refresh();
-
-                float highestTemp = 0;
-                float totalCpuLoad = 0;
-
-                foreach (var hardware in _computer.Hardware)
-                {
-                    ProcessHardwareRecursive(hardware, ref highestTemp, ref totalCpuLoad);
-                }
-
-                foreach (var cpuItem in HardwareItems.Where(h => h.HardwareType == "Cpu"))
-                {
-                    ApplyCpuFallbackSensors(cpuItem);
-                    cpuItem.RefreshGroups();
-                }
-
-                if (highestTemp > 0) MaxTemp = $"{highestTemp:F0}°";
-                if (totalCpuLoad > 0) CpuLoad = $"{totalCpuLoad:F0}%";
+                bool ok = _reader.Refresh();
+                HwInfoActive = ok;
+                if (ok) RebuildFromHWiNFO();
+                else    RebuildFromFallback();
             }
-            catch { /* Maintain stability */ }
+            catch { }
         }
 
-        private void ProcessHardwareRecursive(IHardware hardware, ref float highestTemp, ref float totalCpuLoad)
-        {
-            // STRICT UI FILTERING: Only CPU and GPU allowed in the dashboard
-            bool isCpu = hardware.HardwareType == HardwareType.Cpu;
-            bool isGpu = hardware.HardwareType.ToString().Contains("Gpu");
+        // ═════════════════════════════════════════════════════════════════════
+        // HWiNFO — pure passthrough, exact names, merged groups
+        // ═════════════════════════════════════════════════════════════════════
 
-            if (isCpu || isGpu)
+        private void RebuildFromHWiNFO()
+        {
+            // Group readings by sensor index
+            var rawGroups = _reader.AllReadings
+                .GroupBy(r => r.SensorIndex)
+                .Select(g => new RawGroup(g.Key, g.First().SensorName, g.ToList()))
+                .ToList();
+
+            // Merge sibling groups (e.g. "CPU [#0]: ..." + "CPU [#0]: ...: Enhanced")
+            // into a single card, keyed by the stripped base name.
+            var cards = new Dictionary<string, CardData>();
+
+            foreach (var g in rawGroups)
             {
-                var targetItem = HardwareItems.FirstOrDefault(h => h.Name == hardware.Name || (isCpu && h.HardwareType == "Cpu"));
-                
-                if (targetItem == null)
+                string hwType  = DetectHwType(g.SensorName);
+                string cardKey = StripSuffix(g.SensorName) + "::" + hwType;
+
+                if (!cards.TryGetValue(cardKey, out var card))
                 {
-                    targetItem = new HardwareItem
+                    card = new CardData(g.SensorName, hwType);
+                    cards[cardKey] = card;
+                }
+                else if (g.SensorName.Length < card.DisplayName.Length)
+                {
+                    // Prefer the shorter (base) name as the card title
+                    card.DisplayName = g.SensorName;
+                }
+
+                card.Readings.AddRange(g.Readings);
+            }
+
+            // Build / update HardwareItems
+            var seen = new HashSet<string>();
+            float bestTemp = 0, bestLoad = 0;
+
+            foreach (var (cardKey, card) in cards)
+            {
+                seen.Add(cardKey);
+
+                var item = HardwareItems.FirstOrDefault(h =>
+                    h.HardwareType == card.HwType &&
+                    StripSuffix(h.Name) + "::" + h.HardwareType == cardKey);
+
+                if (item == null)
+                {
+                    item = new HardwareItem
                     {
-                        Name = hardware.Name,
-                        HardwareType = isCpu ? "Cpu" : hardware.HardwareType.ToString(),
-                        IsCpu = isCpu,
-                        IsGpu = isGpu
+                        Name         = card.DisplayName,
+                        HardwareType = card.HwType
                     };
-                    HardwareItems.Add(targetItem);
+                    HardwareItems.Add(item);
                 }
 
-                UpdateSensors(targetItem, hardware.Sensors);
-                foreach (var sub in hardware.SubHardware) UpdateSensors(targetItem, sub.Sensors);
-                
-                targetItem.RefreshGroups();
-            }
+                // Rebuild sensors — deduplicate by ReadingId, keep HWiNFO name as-is
+                item.Sensors.Clear();
+                var usedIds = new HashSet<uint>();
 
-            // Summary data collection
-            foreach (var sensor in hardware.Sensors)
-            {
-                if (!sensor.Value.HasValue || sensor.Value <= 0) continue;
-                if (sensor.SensorType == SensorType.Temperature && IsPreferredCpuTemperature(sensor.Name))
-                    highestTemp = Math.Max(highestTemp, sensor.Value.Value);
-                if (sensor.SensorType == SensorType.Load && IsPreferredCpuLoad(sensor.Name))
-                    totalCpuLoad = Math.Max(totalCpuLoad, sensor.Value.Value);
-            }
-
-            foreach (var subHardware in hardware.SubHardware)
-                ProcessHardwareRecursive(subHardware, ref highestTemp, ref totalCpuLoad);
-        }
-
-        private void UpdateSensors(HardwareItem item, ISensor[] sensors)
-        {
-            foreach (var sensor in sensors)
-            {
-                var sensorType = sensor.SensorType.ToString();
-                var sensorId = sensor.Identifier.ToString();
-
-                var existing = item.Sensors.FirstOrDefault(s =>
-                    (!string.IsNullOrWhiteSpace(s.SensorId) && s.SensorId == sensorId) ||
-                    (string.IsNullOrWhiteSpace(s.SensorId) && s.Name == sensor.Name && s.SensorType == sensorType));
-
-                if (existing != null)
+                foreach (var r in card.Readings.OrderBy(r => r.Label))
                 {
-                    existing.Name = sensor.Name;
-                    existing.SensorType = sensorType;
-                    existing.SensorId = sensorId;
-                    existing.Value = sensor.Value;
-                    continue;
+                    if (!usedIds.Add(r.ReadingId)) continue;
+
+                    string lhmType = ToLhmType(r.Type);
+                    if (lhmType == "") continue;
+
+                    item.Sensors.Add(new HardwareSensor
+                    {
+                        Name       = r.Label,          // ← exact HWiNFO name, no translation
+                        SensorType = lhmType,
+                        SensorId   = $"hwinfo::{r.ReadingId}",
+                        Value      = (float)r.Value
+                    });
+
+                    // Collect header bar values
+                    if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_TEMP && r.Value > bestTemp
+                        && IsMainCpuTemp(r.Label, card.HwType))
+                        bestTemp = (float)r.Value;
+
+                    if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_USAGE
+                        && card.HwType == "Cpu" && IsTotalCpuLoad(r.Label))
+                        bestLoad = (float)r.Value;
+
+                    if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_USAGE
+                        && card.HwType == "Memory"
+                        && r.Label.Contains("Usage", StringComparison.OrdinalIgnoreCase))
+                    {
+                        RamUsage      = $"{r.Value:F1} %";
+                        RamPercentage = r.Value;
+                    }
                 }
 
-                item.Sensors.Add(new HardwareSensor
-                {
-                    Name = sensor.Name,
-                    SensorType = sensorType,
-                    SensorId = sensorId,
-                    Value = sensor.Value
-                });
-            }
-        }
-
-        private void ApplyCpuFallbackSensors(HardwareItem cpuItem)
-        {
-            UpsertCpuFallbackSensor(cpuItem, "CPU Package (Fallback)", "Temperature", _cpuFallbackTelemetry.TryReadTemperature);
-            UpsertCpuFallbackSensor(cpuItem, "CPU Effective Clock (Fallback)", "Clock", _cpuFallbackTelemetry.TryReadClockMhz);
-            UpsertCpuFallbackSensor(cpuItem, "CPU Package Power (Fallback)", "Power", _cpuFallbackTelemetry.TryReadPackagePower);
-            
-            // AMD Fix Fallbacks
-            var amdTemp = _amdFix.GetCpuTemp();
-            if (amdTemp.HasValue) UpsertCpuFallbackSensor(cpuItem, "CPU Temp (AMD Fix)", "Temperature", out _ , amdTemp.Value);
-
-            var amdClock = _amdFix.GetAverageClock();
-            if (amdClock.HasValue) UpsertCpuFallbackSensor(cpuItem, "CPU Clock (AMD Fix)", "Clock", out _ , amdClock.Value);
-        }
-
-        private static void UpsertCpuFallbackSensor(HardwareItem cpuItem, string sensorName, string sensorType, TryReadMetric readMetric)
-        {
-            if (!readMetric(out var value) || value <= 0) return;
-            UpsertCpuFallbackSensor(cpuItem, sensorName, sensorType, out _, value);
-        }
-
-        private static void UpsertCpuFallbackSensor(HardwareItem cpuItem, string sensorName, string sensorType, out float val, float value)
-        {
-            val = value;
-            var fallbackId = $"fallback::{sensorType}::{sensorName}";
-            var sensor = cpuItem.Sensors.FirstOrDefault(s => s.SensorId == fallbackId);
-            if (sensor == null)
-            {
-                cpuItem.Sensors.Add(new HardwareSensor
-                {
-                    Name = sensorName,
-                    SensorType = sensorType,
-                    SensorId = fallbackId,
-                    Value = value
-                });
-                return;
+                item.RefreshGroups();
             }
 
-            sensor.Value = value;
+            // Remove cards that no longer exist in HWiNFO
+            var stale = HardwareItems
+                .Where(h => !seen.Contains(StripSuffix(h.Name) + "::" + h.HardwareType))
+                .ToList();
+            foreach (var h in stale) HardwareItems.Remove(h);
+
+            if (bestTemp > 0) MaxTemp = $"{bestTemp:F0}°";
+            if (bestLoad > 0) CpuLoad = $"{bestLoad:F0}%";
         }
 
-        private static bool IsPreferredCpuTemperature(string sensorName)
+        // ═════════════════════════════════════════════════════════════════════
+        // Fallback (HWiNFO not running) — PerfCounter + WMI
+        // ═════════════════════════════════════════════════════════════════════
+
+        private void RebuildFromFallback()
         {
-            return sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase) ||
-                   sensorName.Contains("Tctl", StringComparison.OrdinalIgnoreCase) ||
-                   sensorName.Contains("Average", StringComparison.OrdinalIgnoreCase);
+            _fallback.Refresh();
+
+            var cpu = GetOrCreate("CPU", "Cpu");
+            cpu.Sensors.Clear();
+
+            if (_fallback.TemperatureCelsius >= 20)
+                cpu.Sensors.Add(Mk("CPU Temperature (WMI)", "Temperature", _fallback.TemperatureCelsius));
+
+            if (_fallback.AverageClockMhz > 100)
+                cpu.Sensors.Add(Mk("CPU Average Clock", "Clock", _fallback.AverageClockMhz));
+
+            for (int i = 0; i < _fallback.PerCoreFrequencyMhz.Count; i++)
+                if (_fallback.PerCoreFrequencyMhz[i] > 100)
+                    cpu.Sensors.Add(Mk($"Core #{i} Clock", "Clock", _fallback.PerCoreFrequencyMhz[i]));
+
+            if (_fallback.TotalLoadPercent > 0)
+                cpu.Sensors.Add(Mk("CPU Total Load", "Load", _fallback.TotalLoadPercent));
+
+            for (int i = 0; i < _fallback.PerCoreLoadPercent.Count; i++)
+                cpu.Sensors.Add(Mk($"Core #{i} Load", "Load", _fallback.PerCoreLoadPercent[i]));
+
+            if (_fallback.EstimatedWatts > 0)
+                cpu.Sensors.Add(Mk("CPU Power (Estimated)", "Power", _fallback.EstimatedWatts));
+
+            cpu.RefreshGroups();
+
+            if (_fallback.TemperatureCelsius >= 20) MaxTemp = $"{_fallback.TemperatureCelsius:F0}°";
+            if (_fallback.TotalLoadPercent    >  0) CpuLoad = $"{_fallback.TotalLoadPercent:F0}%";
         }
 
-        private static bool IsPreferredCpuLoad(string sensorName)
+        // ═════════════════════════════════════════════════════════════════════
+        // Helpers — only used internally, not for sensor naming
+        // ═════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Detects hardware category purely from the sensor's own name.
+        /// Used only for icon selection and card layout — never modifies sensor names.
+        /// </summary>
+        private static string DetectHwType(string name)
         {
-            return sensorName.Contains("Total", StringComparison.OrdinalIgnoreCase) ||
-                   sensorName.Contains("Package", StringComparison.OrdinalIgnoreCase);
+            if (Has(name, "Ryzen","Core i","Intel Core","Threadripper","EPYC","Athlon","Xeon","CPU ["))
+                return "Cpu";
+            if (Has(name, "GeForce","RTX","GTX","NVIDIA")) return "GpuNvidia";
+            if (Has(name, "Radeon","RX ","AMD GPU"))        return "GpuAmd";
+            if (Has(name, "Arc ","Intel GPU","Intel Graphics")) return "GpuIntel";
+            if (Has(name, "GPU"))                            return "GpuNvidia";
+            if (Has(name, "Memory","RAM","DIMM"))            return "Memory";
+            if (Has(name, "Motherboard","System","ASUS","MSI","Gigabyte","ASRock","Biostar"))
+                return "Motherboard";
+            if (Has(name, "SSD","HDD","NVMe","Drive","Disk","Samsung","Seagate","Kingston","Crucial"))
+                return "Storage";
+            if (Has(name, "Network","Ethernet","Wi-Fi","WLAN","LAN")) return "Network";
+            if (Has(name, "Battery"))  return "Battery";
+            return "Other";
         }
+
+        private static bool Has(string src, params string[] kw)
+        {
+            foreach (var k in kw)
+                if (src.Contains(k, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Removes HWiNFO's ": Enhanced / Extended / Debug" suffix so that
+        /// the two CPU sensor groups share the same card key.
+        /// </summary>
+        private static string StripSuffix(string name) =>
+            System.Text.RegularExpressions.Regex.Replace(
+                name,
+                @"\s*:\s*(Enhanced|Extended|Debug|Advanced|Extra)\s*$",
+                "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
+        private static string ToLhmType(SENSOR_READING_TYPE t) => t switch
+        {
+            SENSOR_READING_TYPE.SENSOR_TYPE_TEMP  => "Temperature",
+            SENSOR_READING_TYPE.SENSOR_TYPE_VOLT  => "Voltage",
+            SENSOR_READING_TYPE.SENSOR_TYPE_FAN   => "Fan",
+            SENSOR_READING_TYPE.SENSOR_TYPE_POWER => "Power",
+            SENSOR_READING_TYPE.SENSOR_TYPE_CLOCK => "Clock",
+            SENSOR_READING_TYPE.SENSOR_TYPE_USAGE => "Load",
+            SENSOR_READING_TYPE.SENSOR_TYPE_OTHER => "Factor",
+            _                                     => ""
+        };
+
+        // These two are used only for the header bar (MaxTemp / CpuLoad),
+        // not for sensor naming. They match on the original HWiNFO label.
+        private static bool IsMainCpuTemp(string label, string hwType) =>
+            hwType == "Cpu" &&
+            (label.Contains("Tctl", StringComparison.OrdinalIgnoreCase) ||
+             label.Contains("Tdie", StringComparison.OrdinalIgnoreCase) ||
+             label.Contains("Package", StringComparison.OrdinalIgnoreCase));
+
+        private static bool IsTotalCpuLoad(string label) =>
+            (label.Contains("Total", StringComparison.OrdinalIgnoreCase) ||
+             label.Equals("CPU Usage", StringComparison.OrdinalIgnoreCase)) &&
+            !label.Contains("Core", StringComparison.OrdinalIgnoreCase) &&
+            !label.Contains("Thread", StringComparison.OrdinalIgnoreCase);
+
+        private HardwareItem GetOrCreate(string name, string hwType)
+        {
+            var item = HardwareItems.FirstOrDefault(h => h.HardwareType == hwType);
+            if (item != null) return item;
+            item = new HardwareItem { Name = name, HardwareType = hwType };
+            HardwareItems.Add(item);
+            return item;
+        }
+
+        private static HardwareSensor Mk(string name, string type, float value) =>
+            new() { Name = name, SensorType = type, SensorId = $"fb::{type}::{name}", Value = value };
 
         public void Dispose()
         {
             _timer.Stop();
-            _cpuFallbackTelemetry.Dispose();
-            _computer.Close();
+            _reader.Dispose();
+            _fallback.Dispose();
         }
 
-        private delegate bool TryReadMetric(out float value);
+        // ── Internal DTOs ─────────────────────────────────────────────────────
+
+        private record RawGroup(uint SensorIndex, string SensorName, List<HWiNFO_Reading> Readings);
+
+        private class CardData
+        {
+            public string              DisplayName { get; set; }
+            public string              HwType      { get; }
+            public List<HWiNFO_Reading> Readings   { get; } = new();
+            public CardData(string name, string hwType) { DisplayName = name; HwType = hwType; }
+        }
     }
 }
