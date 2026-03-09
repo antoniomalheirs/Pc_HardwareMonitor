@@ -143,21 +143,29 @@ namespace Monitor_Pc.ViewModels
         {
             foreach (var sensor in sensors)
             {
-                var existing = item.Sensors.FirstOrDefault(s => s.Name == sensor.Name && s.SensorType == sensor.SensorType.ToString());
+                var sensorType = sensor.SensorType.ToString();
+                var sensorId = sensor.Identifier.ToString();
+
+                var existing = item.Sensors.FirstOrDefault(s =>
+                    (!string.IsNullOrWhiteSpace(s.SensorId) && s.SensorId == sensorId) ||
+                    (string.IsNullOrWhiteSpace(s.SensorId) && s.Name == sensor.Name && s.SensorType == sensorType));
+
                 if (existing != null)
                 {
-                    if (sensor.Value == null && existing.Value != null) continue;
+                    existing.Name = sensor.Name;
+                    existing.SensorType = sensorType;
+                    existing.SensorId = sensorId;
                     existing.Value = sensor.Value;
+                    continue;
                 }
-                else
+
+                item.Sensors.Add(new HardwareSensor
                 {
-                    item.Sensors.Add(new HardwareSensor
-                    {
-                        Name = sensor.Name,
-                        SensorType = sensor.SensorType.ToString(),
-                        Value = sensor.Value
-                    });
-                }
+                    Name = sensor.Name,
+                    SensorType = sensorType,
+                    SensorId = sensorId,
+                    Value = sensor.Value
+                });
             }
         }
 
@@ -172,12 +180,20 @@ namespace Monitor_Pc.ViewModels
         {
             if (!readMetric(out var value) || value <= 0) return;
 
-            var sensor = cpuItem.Sensors.FirstOrDefault(s => s.Name == sensorName && s.SensorType == sensorType);
+            var fallbackId = $"fallback::{sensorType}::{sensorName}";
+            var sensor = cpuItem.Sensors.FirstOrDefault(s => s.SensorId == fallbackId);
             if (sensor == null)
             {
-                cpuItem.Sensors.Add(new HardwareSensor { Name = sensorName, SensorType = sensorType, Value = value });
+                cpuItem.Sensors.Add(new HardwareSensor
+                {
+                    Name = sensorName,
+                    SensorType = sensorType,
+                    SensorId = fallbackId,
+                    Value = value
+                });
                 return;
             }
+
             sensor.Value = value;
         }
 
