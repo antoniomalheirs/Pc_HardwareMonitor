@@ -329,18 +329,33 @@ namespace Monitor_Pc.Models
             // ABSOLUTE PRIORITY: CPU Voltage (SVI2 TFN)
             if (keywords.Any(k => k.Equals("SVI2 TFN", StringComparison.OrdinalIgnoreCase)))
             {
-                var tfn = validSensors.FirstOrDefault(s => s.Name.Contains("TFN", StringComparison.OrdinalIgnoreCase));
+                // Prefer SVI2 TFN that is NOT static 1.55V
+                var tfn = validSensors.FirstOrDefault(s => s.Name.Contains("TFN", StringComparison.OrdinalIgnoreCase) && Math.Abs((s.Value ?? 0) - 1.55f) > 0.01f);
+                if (tfn != null) return tfn;
+                
+                // Fallback to any TFN
+                tfn = validSensors.FirstOrDefault(s => s.Name.Contains("TFN", StringComparison.OrdinalIgnoreCase));
                 if (tfn != null) return tfn;
             }
 
             return validSensors
                 .OrderBy(s => {
+                    // Prefer sensors with specified IDs (fallbacks often have explicit IDs)
+                    if (!string.IsNullOrEmpty(s.SensorId) && keywords.Any(k => s.SensorId.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                        return 0;
+
                     for (int i = 0; i < keywords.Length; i++)
                     {
                         if (s.Name.Contains(keywords[i], StringComparison.OrdinalIgnoreCase))
-                            return i;
+                            return i + 1;
                     }
                     return 999;
+                })
+                .ThenBy(s => {
+                    // De-prioritize static 1.55V if we are looking for voltages
+                    if (s.SensorType == "Voltage" && Math.Abs((s.Value ?? 0) - 1.55f) < 0.001f)
+                        return 1;
+                    return 0;
                 })
                 .ThenByDescending(s => s.Value)
                 .FirstOrDefault();

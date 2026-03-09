@@ -79,3 +79,5 @@ c:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\obj\Debug\net8.0-windows\refint\
 c:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\obj\Debug\net8.0-windows\Monitor_Pc.pdb
 c:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\obj\Debug\net8.0-windows\Monitor_Pc.genruntimeconfig.cache
 c:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\obj\Debug\net8.0-windows\ref\Monitor_Pc.dll
+C:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\bin\Debug\net8.0-windows\Hardware.Info.dll
+C:\Users\Zeca\Desktop\Git\Monitor_Pc\Monitor_Pc\bin\Debug\net8.0-windows\Hardware.Info.Core.dll

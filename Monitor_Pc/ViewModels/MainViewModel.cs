@@ -16,6 +16,7 @@ namespace Monitor_Pc.ViewModels
         private readonly UpdateVisitor _updateVisitor;
         private readonly DispatcherTimer _timer;
         private readonly CpuFallbackTelemetry _cpuFallbackTelemetry;
+        private readonly AmdTelemetryFix _amdFix;
 
         public ObservableCollection<HardwareItem> HardwareItems { get; } = new ObservableCollection<HardwareItem>();
 
@@ -38,10 +39,10 @@ namespace Monitor_Pc.ViewModels
                 IsCpuEnabled = true,
                 IsGpuEnabled = true,
                 IsMemoryEnabled = true,
-                IsMotherboardEnabled = false, // Explicitly false to avoid bloat
-                IsControllerEnabled = false,
-                IsNetworkEnabled = false,
-                IsStorageEnabled = false
+                IsMotherboardEnabled = true, // Enable for background sensor access
+                IsControllerEnabled = true,
+                IsNetworkEnabled = true,
+                IsStorageEnabled = true
             };
             
             try { _computer.Open(); } catch { }
@@ -55,6 +56,7 @@ namespace Monitor_Pc.ViewModels
             }
 
             _cpuFallbackTelemetry = new CpuFallbackTelemetry();
+            _amdFix = new AmdTelemetryFix();
 
             _timer = new DispatcherTimer
             {
@@ -76,6 +78,7 @@ namespace Monitor_Pc.ViewModels
             try 
             {
                 _computer.Accept(_updateVisitor);
+                _amdFix.Refresh();
 
                 float highestTemp = 0;
                 float totalCpuLoad = 0;
@@ -99,7 +102,7 @@ namespace Monitor_Pc.ViewModels
 
         private void ProcessHardwareRecursive(IHardware hardware, ref float highestTemp, ref float totalCpuLoad)
         {
-            // STRICT FILTERING: Only CPU and GPU. NO MOTHERBOARD.
+            // STRICT UI FILTERING: Only CPU and GPU allowed in the dashboard
             bool isCpu = hardware.HardwareType == HardwareType.Cpu;
             bool isGpu = hardware.HardwareType.ToString().Contains("Gpu");
 
@@ -174,12 +177,24 @@ namespace Monitor_Pc.ViewModels
             UpsertCpuFallbackSensor(cpuItem, "CPU Package (Fallback)", "Temperature", _cpuFallbackTelemetry.TryReadTemperature);
             UpsertCpuFallbackSensor(cpuItem, "CPU Effective Clock (Fallback)", "Clock", _cpuFallbackTelemetry.TryReadClockMhz);
             UpsertCpuFallbackSensor(cpuItem, "CPU Package Power (Fallback)", "Power", _cpuFallbackTelemetry.TryReadPackagePower);
+            
+            // AMD Fix Fallbacks
+            var amdTemp = _amdFix.GetCpuTemp();
+            if (amdTemp.HasValue) UpsertCpuFallbackSensor(cpuItem, "CPU Temp (AMD Fix)", "Temperature", out _ , amdTemp.Value);
+
+            var amdClock = _amdFix.GetAverageClock();
+            if (amdClock.HasValue) UpsertCpuFallbackSensor(cpuItem, "CPU Clock (AMD Fix)", "Clock", out _ , amdClock.Value);
         }
 
         private static void UpsertCpuFallbackSensor(HardwareItem cpuItem, string sensorName, string sensorType, TryReadMetric readMetric)
         {
             if (!readMetric(out var value) || value <= 0) return;
+            UpsertCpuFallbackSensor(cpuItem, sensorName, sensorType, out _, value);
+        }
 
+        private static void UpsertCpuFallbackSensor(HardwareItem cpuItem, string sensorName, string sensorType, out float val, float value)
+        {
+            val = value;
             var fallbackId = $"fallback::{sensorType}::{sensorName}";
             var sensor = cpuItem.Sensors.FirstOrDefault(s => s.SensorId == fallbackId);
             if (sensor == null)

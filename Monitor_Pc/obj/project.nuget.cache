@@ -1,14 +1,18 @@
 {
   "version": 2,
-  "dgSpecHash": "GY/omLmHtj4=",
+  "dgSpecHash": "i+ZjktVBVzs=",
   "success": true,
   "projectFilePath": "C:\\Users\\Zeca\\Desktop\\Git\\Monitor_Pc\\Monitor_Pc\\Monitor_Pc.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Zeca\\.nuget\\packages\\blacksharp.core\\1.0.7\\blacksharp.core.1.0.7.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\communitytoolkit.mvvm\\8.4.0\\communitytoolkit.mvvm.8.4.0.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\diskinfotoolkit\\1.1.2\\diskinfotoolkit.1.1.2.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\hardware.info\\101.1.1.1\\hardware.info.101.1.1.1.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\hardware.info.core\\101.1.1.1\\hardware.info.core.101.1.1.1.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\hidsharp\\2.6.4\\hidsharp.2.6.4.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\librehardwaremonitorlib\\0.9.6\\librehardwaremonitorlib.0.9.6.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\microsoft.netcore.platforms\\5.0.0\\microsoft.netcore.platforms.5.0.0.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\microsoft.win32.registry\\5.0.0\\microsoft.win32.registry.5.0.0.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\mono.posix.netstandard\\1.0.0\\mono.posix.netstandard.1.0.0.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\ramspdtoolkit-ndd\\1.4.2\\ramspdtoolkit-ndd.1.4.2.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\runtime.android-arm.runtime.native.system.io.ports\\10.0.3\\runtime.android-arm.runtime.native.system.io.ports.10.0.3.nupkg.sha512",
@@ -34,7 +38,9 @@
     "C:\\Users\\Zeca\\.nuget\\packages\\system.diagnostics.performancecounter\\10.0.3\\system.diagnostics.performancecounter.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.io.ports\\10.0.3\\system.io.ports.10.0.3.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.management\\10.0.3\\system.management.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.security.accesscontrol\\5.0.0\\system.security.accesscontrol.5.0.0.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.security.cryptography.protecteddata\\10.0.3\\system.security.cryptography.protecteddata.10.0.3.nupkg.sha512",
+    "C:\\Users\\Zeca\\.nuget\\packages\\system.security.principal.windows\\5.0.0\\system.security.principal.windows.5.0.0.nupkg.sha512",
     "C:\\Users\\Zeca\\.nuget\\packages\\system.threading.accesscontrol\\10.0.3\\system.threading.accesscontrol.10.0.3.nupkg.sha512"
   ],
   "logs": []
