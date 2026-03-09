@@ -22,13 +22,23 @@
         <SolidColorBrush x:Key="AccentOrange"      Color="#FF9E00"/>
         <SolidColorBrush x:Key="AccentRed"         Color="#FF3D00"/>
         <SolidColorBrush x:Key="AccentGreen"       Color="#00E676"/>
+        <SolidColorBrush x:Key="AccentYellow"      Color="#FFE57F"/>
         <SolidColorBrush x:Key="CardBackground"    Color="#12121A"/>
         <SolidColorBrush x:Key="SidebarBackground" Color="#0A0A0F"/>
 
         <converters:NullToVisibilityConverter x:Key="NullToVis"/>
         <BooleanToVisibilityConverter         x:Key="BoolToVis"/>
 
-        <!-- Card border -->
+        <!-- Converter for inverse bool: shows diagnostic panel only when HWiNFO is NOT active -->
+        <Style x:Key="DiagPanel" TargetType="Border">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HwInfoActive}" Value="False">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background"      Value="{StaticResource CardBackground}"/>
             <Setter Property="BorderBrush"     Value="#1AFFFFFF"/>
@@ -43,7 +53,6 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Section label (these are UI-only group labels, not sensor names) -->
         <Style x:Key="GroupLabel" TargetType="TextBlock">
             <Setter Property="FontSize"   Value="9"/>
             <Setter Property="FontWeight" Value="Black"/>
@@ -51,7 +60,6 @@
             <Setter Property="Margin"     Value="0,0,0,8"/>
         </Style>
 
-        <!-- Sensor name: shown exactly as HWiNFO sends -->
         <Style x:Key="SensorName" TargetType="TextBlock">
             <Setter Property="FontSize"          Value="11"/>
             <Setter Property="Foreground"        Value="#BFFFFFFF"/>
@@ -60,7 +68,6 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
         </Style>
 
-        <!-- Sensor value -->
         <Style x:Key="SensorValue" TargetType="TextBlock">
             <Setter Property="FontSize"            Value="11"/>
             <Setter Property="FontWeight"          Value="SemiBold"/>
@@ -68,7 +75,6 @@
             <Setter Property="VerticalAlignment"   Value="Center"/>
         </Style>
 
-        <!-- Title bar buttons -->
         <Style x:Key="TBtn" TargetType="Button">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="#55FFFFFF"/>
@@ -92,6 +98,7 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
         <Style x:Key="TBtnClose" BasedOn="{StaticResource TBtn}" TargetType="Button">
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -104,82 +111,150 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ═══════════ SIDEBAR ═══════════════════════════════════════════════ -->
+        <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════ -->
         <Border Grid.Column="0" Background="{StaticResource SidebarBackground}"
                 BorderBrush="#0DFFFFFF" BorderThickness="0,0,1,0">
-            <Grid Margin="30,50,30,40">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Grid Margin="28,50,28,40">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <StackPanel Margin="0,0,0,60">
-                    <Grid HorizontalAlignment="Left" Margin="0,0,0,20">
-                        <Ellipse Width="48" Height="48" Fill="{StaticResource AccentPurple}" Opacity="0.15"/>
-                        <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="24"
-                                   Foreground="{StaticResource AccentCiano}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Grid>
-                    <TextBlock Text="MONITOR" FontSize="22" FontWeight="Black"/>
-                    <TextBlock Text="CORE ENGINE v4" FontSize="11" Foreground="#44FFFFFF" FontWeight="Bold" Margin="2,0,0,0"/>
-                </StackPanel>
+                    <!-- Logo -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,40">
+                        <Grid HorizontalAlignment="Left" Margin="0,0,0,16">
+                            <Ellipse Width="48" Height="48" Fill="{StaticResource AccentPurple}" Opacity="0.15"/>
+                            <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="24"
+                                       Foreground="{StaticResource AccentCiano}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Text="MONITOR" FontSize="22" FontWeight="Black"/>
+                        <TextBlock Text="CORE ENGINE v4" FontSize="11" Foreground="#44FFFFFF" FontWeight="Bold" Margin="2,0,0,0"/>
+                    </StackPanel>
 
-                <StackPanel Grid.Row="1">
-                    <TextBlock Text="WORKSPACE" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,20"/>
-                    <Border Background="#12FFFFFF" CornerRadius="14" Padding="20,16" Margin="0,0,0,12"
-                            BorderBrush="#1AFFFFFF" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="20"
-                                       Foreground="{StaticResource AccentCiano}" VerticalAlignment="Center"/>
-                            <TextBlock Text="Live Status" Margin="20,0,0,0" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                    <!-- Nav -->
+                    <StackPanel Grid.Row="1" Margin="0,0,0,30">
+                        <TextBlock Text="WORKSPACE" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,14"/>
+                        <Border Background="#12FFFFFF" CornerRadius="14" Padding="18,14"
+                                BorderBrush="#1AFFFFFF" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE9D9;" FontFamily="Segoe MDL2 Assets" FontSize="18"
+                                           Foreground="{StaticResource AccentCiano}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Live Status" Margin="16,0,0,0" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Stats (only when HWiNFO active) -->
+                    <StackPanel Grid.Row="2" Margin="0,0,0,20"
+                                Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="READINGS" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,12"/>
+                        <Border Background="#08FFFFFF" CornerRadius="14" Padding="18,12"
+                                BorderBrush="#10FFFFFF" BorderThickness="1" Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="{Binding TotalReadings}" FontSize="28" FontWeight="Black"
+                                           Foreground="{StaticResource AccentCiano}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="sensores ativos" FontSize="10" Foreground="#44FFFFFF" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#08FFFFFF" CornerRadius="14" Padding="18,12"
+                                BorderBrush="#10FFFFFF" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="{Binding LastUpdate}" FontSize="16" FontWeight="Bold"
+                                           Foreground="{StaticResource AccentGreen}" HorizontalAlignment="Center"/>
+                                <TextBlock Text="última leitura" FontSize="10" Foreground="#44FFFFFF" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ⚠️ Diagnostic panel — shows ONLY when HWiNFO is not connected -->
+                    <Border Grid.Row="3" Style="{StaticResource DiagPanel}"
+                            Margin="0,0,0,20" Padding="18,16" CornerRadius="16"
+                            Background="#1AFF9E00" BorderBrush="#44FF9E00" BorderThickness="1">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="⚠" FontSize="16" Foreground="{StaticResource AccentOrange}" VerticalAlignment="Center"/>
+                                <TextBlock Text="  DIAGNÓSTICO" FontSize="10" FontWeight="Black"
+                                           Foreground="{StaticResource AccentOrange}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding DiagnosticMessage}"
+                                       FontSize="11" Foreground="#CCFF9E00"
+                                       TextWrapping="Wrap" LineHeight="18"/>
+                            <Border Margin="0,14,0,0" Padding="12,10" CornerRadius="10"
+                                    Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+                                <TextBlock FontSize="10" Foreground="#AAFFFFFF" TextWrapping="Wrap" LineHeight="16">
+                                    <Run FontWeight="Bold" Foreground="#FFFFFF">Como corrigir:</Run>
+                                    <LineBreak/>
+                                    1. Abra o HWiNFO64
+                                    <LineBreak/>
+                                    2. Clique no ícone de engrenagem (Settings)
+                                    <LineBreak/>
+                                    3. Aba "General"
+                                    <LineBreak/>
+                                    4. Marque "Shared Memory Support"
+                                    <LineBreak/>
+                                    5. Clique OK
+                                    <LineBreak/>
+                                    6. Feche e reabra os Sensores
+                                </TextBlock>
+                            </Border>
                         </StackPanel>
                     </Border>
-                </StackPanel>
 
-                <!-- Source indicator — no custom converters needed -->
-                <Border Grid.Row="3" Padding="25" CornerRadius="20"
-                        Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="DATA SOURCE" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
-                        <!-- Green dot when HWiNFO active -->
-                        <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
-                            <Ellipse Width="10" Height="10" Fill="{StaticResource AccentGreen}" VerticalAlignment="Center">
-                                <Ellipse.Effect>
-                                    <DropShadowEffect Color="#00E676" BlurRadius="12" ShadowDepth="0"/>
-                                </Ellipse.Effect>
-                            </Ellipse>
-                            <TextBlock Text="HWiNFO64 ATIVO" Margin="12,0,0,0" FontSize="12"
-                                       FontWeight="Black" Foreground="{StaticResource AccentGreen}"/>
+                    <!-- Data source indicator -->
+                    <Border Grid.Row="4" Padding="20,18" CornerRadius="20"
+                            Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="DATA SOURCE" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
+
+                            <!-- HWiNFO active -->
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
+                                <Ellipse Width="10" Height="10" Fill="{StaticResource AccentGreen}" VerticalAlignment="Center">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="#00E676" BlurRadius="12" ShadowDepth="0"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <TextBlock Text="HWiNFO64 ATIVO" Margin="12,0,0,0" FontSize="12"
+                                           FontWeight="Black" Foreground="{StaticResource AccentGreen}"/>
+                            </StackPanel>
+
+                            <!-- Fallback -->
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HwInfoActive}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <Ellipse Width="10" Height="10" Fill="{StaticResource AccentOrange}" VerticalAlignment="Center"/>
+                                <TextBlock Text="MODO FALLBACK" Margin="12,0,0,0" FontSize="12"
+                                           FontWeight="Black" Foreground="{StaticResource AccentOrange}"/>
+                            </StackPanel>
+
+                            <!-- Last update (always visible) -->
+                            <TextBlock Text="{Binding LastUpdate}" FontSize="11"
+                                       Foreground="#33FFFFFF" Margin="0,8,0,0"/>
                         </StackPanel>
-                        <!-- Orange dot when fallback -->
-                        <StackPanel Orientation="Horizontal">
-                            <StackPanel.Style>
-                                <Style TargetType="StackPanel">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HwInfoActive}" Value="False">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </StackPanel.Style>
-                            <Ellipse Width="10" Height="10" Fill="{StaticResource AccentOrange}" VerticalAlignment="Center"/>
-                            <TextBlock Text="SEM HWiNFO" Margin="12,0,0,0" FontSize="12"
-                                       FontWeight="Black" Foreground="{StaticResource AccentOrange}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-            </Grid>
+                    </Border>
+
+                </Grid>
+            </ScrollViewer>
         </Border>
 
-        <!-- ═══════════ MAIN ══════════════════════════════════════════════════ -->
+        <!-- ═══ MAIN ═══════════════════════════════════════════════════════════ -->
         <Grid Grid.Column="1" Background="#08080C">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -193,8 +268,8 @@
                 <TextBlock Text="MONITOR PRO v4.0" FontSize="11" Foreground="#44FFFFFF"
                            VerticalAlignment="Center" Margin="25,0,0,0" FontWeight="Bold" IsHitTestVisible="False"/>
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                    <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource TBtn}"    Content="─"/>
-                    <Button x:Name="BtnMaximize" Click="BtnMaximize_Click" Style="{StaticResource TBtn}"    Content="▢"/>
+                    <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource TBtn}"      Content="─"/>
+                    <Button x:Name="BtnMaximize" Click="BtnMaximize_Click" Style="{StaticResource TBtn}"      Content="▢"/>
                     <Button x:Name="BtnClose"    Click="BtnClose_Click"    Style="{StaticResource TBtnClose}" Content="✕"/>
                 </StackPanel>
             </Grid>
@@ -208,26 +283,43 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="Performance Hub" FontSize="32" FontWeight="SemiBold"/>
-                        <TextBlock Text="HWiNFO64 · dados em tempo real" FontSize="14" Foreground="#44FFFFFF" Margin="0,6,0,0"/>
+                        <TextBlock FontSize="14" Foreground="#44FFFFFF" Margin="0,6,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="HWiNFO64 · dados em tempo real · todos os sensores"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HwInfoActive}" Value="False">
+                                            <Setter Property="Text" Value="Modo fallback · ative o Shared Memory no HWiNFO64"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Background="#0DFFFFFF" CornerRadius="16" Padding="25,12" Margin="0,0,20,0" BorderBrush="#1AFFFFFF" BorderThickness="1">
+                        <Border Background="#0DFFFFFF" CornerRadius="16" Padding="22,12" Margin="0,0,14,0" BorderBrush="#1AFFFFFF" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="CPU LOAD" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                                <TextBlock Text="CPU" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <TextBlock Text="{Binding CpuLoad}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentPurple}"/>
                             </StackPanel>
                         </Border>
-                        <Border Background="#0DFFFFFF" CornerRadius="16" Padding="25,12" BorderBrush="#1AFFFFFF" BorderThickness="1">
+                        <Border Background="#0DFFFFFF" CornerRadius="16" Padding="22,12" Margin="0,0,14,0" BorderBrush="#1AFFFFFF" BorderThickness="1">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="MAX TEMP" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                                <TextBlock Text="TEMP" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                 <TextBlock Text="{Binding MaxTemp}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentRed}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#0DFFFFFF" CornerRadius="16" Padding="22,12" BorderBrush="#1AFFFFFF" BorderThickness="1">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="RAM" FontSize="10" FontWeight="Black" Foreground="#55FFFFFF" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Text="{Binding RamUsage}" FontWeight="Bold" FontSize="18" Foreground="{StaticResource AccentCiano}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- ═══ SENSOR CARDS ═══════════════════════════════════════════════ -->
+            <!-- ═══ SENSOR CARDS ════════════════════════════════════════════════ -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="40,10,20,40">
                 <ItemsControl ItemsSource="{Binding HardwareItems}">
                     <ItemsControl.ItemsPanel>
@@ -244,7 +336,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Card header: device name exactly as HWiNFO sends -->
+                                    <!-- Card header -->
                                     <Border Background="#06FFFFFF" CornerRadius="20,20,0,0"
                                             Padding="22,16" BorderBrush="#10FFFFFF" BorderThickness="0,0,0,1">
                                         <StackPanel Orientation="Horizontal">
@@ -256,7 +348,7 @@
                                             </Grid>
                                             <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
                                                        Margin="14,0,0,0" VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" MaxWidth="360"/>
+                                                       TextTrimming="CharacterEllipsis" MaxWidth="380"/>
                                         </StackPanel>
                                     </Border>
 
@@ -264,15 +356,12 @@
                                     <Border Grid.Row="1" Padding="22,16">
                                         <StackPanel>
 
-                                            <!-- LOADS with progress bars -->
-                                            <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BoolToVis}}"
-                                                        Margin="0,0,0,16">
+                                            <!-- LOADS -->
+                                            <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
                                                 <TextBlock Text="CARGA / USO" Style="{StaticResource GroupLabel}"/>
                                                 <ItemsControl ItemsSource="{Binding Loads}">
                                                     <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <UniformGrid Columns="2"/>
-                                                        </ItemsPanelTemplate>
+                                                        <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
@@ -320,8 +409,8 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="#FFFFFF"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="#FFFFFF"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -334,8 +423,8 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentCiano}"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentCiano}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -348,8 +437,8 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -362,22 +451,36 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="#AAFFFFFF"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="#AAFFFFFF"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
                                                     </StackPanel>
 
-                                                    <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BoolToVis}}">
+                                                    <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
                                                         <TextBlock Text="VENTOINHAS" Style="{StaticResource GroupLabel}"/>
                                                         <ItemsControl ItemsSource="{Binding Fans}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <StackPanel Visibility="{Binding HasThroughput, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="THROUGHPUT" Style="{StaticResource GroupLabel}"/>
+                                                        <ItemsControl ItemsSource="{Binding Throughput}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Grid Margin="0,0,0,4">
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentYellow}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -395,8 +498,8 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentRed}"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentRed}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
@@ -409,8 +512,8 @@
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
                                                                     <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"          Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentOrange}"/>
+                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
+                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentOrange}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>

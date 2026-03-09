@@ -19,19 +19,21 @@ namespace Monitor_Pc.Models
             IsGpu = value.StartsWith("Gpu");
             Icon  = value switch
             {
-                "Cpu"                                  => "",
-                "GpuNvidia" or "GpuAmd" or "GpuIntel" => "",
-                "Memory"                               => "",
-                "Motherboard"                          => "",
-                "Storage"                              => "",
-                _                                      => ""
+                "Cpu"                                  => "\uE9D9",
+                "GpuNvidia" or "GpuAmd" or "GpuIntel" => "\uE7F4",
+                "Memory"                               => "\uE950",
+                "Motherboard"                          => "\uECAA",
+                "Storage"                              => "\uEDA2",
+                "Network"                              => "\uF5DB",
+                "Battery"                              => "\uE83F",
+                _                                      => "\uE9CE"
             };
         }
 
-        // ── Raw sensor list (everything from HWiNFO) ──────────────────────────
+        // ── Raw sensor list ───────────────────────────────────────────────────
         public ObservableCollection<HardwareSensor> Sensors { get; } = new();
 
-        // ── Grouped views (populated by RefreshGroups) ────────────────────────
+        // ── Grouped views ─────────────────────────────────────────────────────
         [ObservableProperty] private ObservableCollection<HardwareSensor> temperatures = new();
         [ObservableProperty] private ObservableCollection<HardwareSensor> loads        = new();
         [ObservableProperty] private ObservableCollection<HardwareSensor> clocks       = new();
@@ -52,7 +54,7 @@ namespace Monitor_Pc.Models
         [ObservableProperty] private bool hasFactor;
         [ObservableProperty] private bool hasThroughput;
 
-        // ── RefreshGroups — just sorts sensors into typed groups, no filtering ─
+        // ── RefreshGroups ─────────────────────────────────────────────────────
 
         public void RefreshGroups()
         {
@@ -79,7 +81,7 @@ namespace Monitor_Pc.Models
             if (IsCpu) PairLoadWithClock();
         }
 
-        // ── Pair each core load with its clock sensor (for dual progress bar) ─
+        // ── Pair core load → clock for dual progress bar ──────────────────────
 
         private void PairLoadWithClock()
         {
@@ -92,11 +94,12 @@ namespace Monitor_Pc.Models
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 if (!m.Success) continue;
 
-                string idx = m.Groups[1].Value;
-                var clock  = Clocks.FirstOrDefault(c =>
+                string idx  = m.Groups[1].Value;
+                var    clock = Clocks.FirstOrDefault(c =>
                     System.Text.RegularExpressions.Regex.IsMatch(
                         c.Name, @"#?\s*" + idx + @"\b",
                         System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+
                 if (clock != null) load.LinkedSensor = clock;
             }
         }
@@ -122,7 +125,7 @@ namespace Monitor_Pc.Models
         }
 
         private static void Apply(ObservableCollection<HardwareSensor> group,
-                                  List<HardwareSensor> target)
+                                   List<HardwareSensor> target)
         {
             for (int i = 0; i < target.Count; i++)
             {
