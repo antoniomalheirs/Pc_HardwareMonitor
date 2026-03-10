@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Monitor_Pc.Models;
 using Monitor_Pc.Utilities;
 
@@ -14,6 +16,7 @@ namespace Monitor_Pc.ViewModels
         private readonly DispatcherTimer      _timer;
         private readonly HWiNFOReader         _reader   = new();
         private readonly CpuFallbackTelemetry _fallback;
+        private readonly TelemetryLogger      _logger   = new();
 
         public ObservableCollection<HardwareItem> HardwareItems { get; } = new();
 
@@ -25,6 +28,12 @@ namespace Monitor_Pc.ViewModels
         [ObservableProperty] private long   totalReadings;
         [ObservableProperty] private string lastUpdate        = "--";
         [ObservableProperty] private string diagnosticMessage = "";
+
+        // ── Logger state ──────────────────────────────────────────────────────
+        [ObservableProperty] private bool   isLogging;
+        [ObservableProperty] private string logFilePath       = "";
+        [ObservableProperty] private long   logEntryCount;
+        [ObservableProperty] private string loggingStatusText = "Logger parado";
 
         public MainViewModel()
         {
@@ -47,6 +56,14 @@ namespace Monitor_Pc.ViewModels
 
                 if (ok) RebuildFromHWiNFO();
                 else    RebuildFromFallback();
+
+                // ── Feed logger ───────────────────────────────────────────
+                if (_logger.IsActive)
+                {
+                    _logger.LogEntry(HardwareItems);
+                    LogEntryCount    = _logger.EntryCount;
+                    LoggingStatusText = $"Gravando · {_logger.EntryCount} entradas";
+                }
             }
             catch { }
         }
@@ -60,79 +77,139 @@ namespace Monitor_Pc.ViewModels
                 .Select(g => new RawGroup(g.Key, g.First().SensorName, g.ToList()))
                 .ToList();
 
-            var cards = new Dictionary<string, CardData>();
+            // Structure: hardwareType -> categoryName -> List of Readings
+            var hwDict = new Dictionary<string, Dictionary<string, List<HWiNFO_Reading>>>();
 
             foreach (var g in rawGroups)
             {
-                string hwType  = DetectHwType(g.SensorName);
-                string cardKey = StripSuffix(g.SensorName) + "::" + hwType;
+                string hwType = DetectHwType(g.SensorName);
+                if (hwType != "Cpu" && !hwType.StartsWith("Gpu") && hwType != "Motherboard")
+                    continue;
 
-                if (!cards.TryGetValue(cardKey, out var card))
+                if (!hwDict.ContainsKey(hwType))
+                    hwDict[hwType] = new Dictionary<string, List<HWiNFO_Reading>>();
+
+                foreach (var r in g.Readings)
                 {
-                    card = new CardData(g.SensorName, hwType);
-                    cards[cardKey] = card;
-                }
-                else if (g.SensorName.Length < card.DisplayName.Length)
-                    card.DisplayName = g.SensorName;
+                    string category = GetCategory(r.Type);
+                    if (category == null) continue;
 
-                card.Readings.AddRange(g.Readings);
+                    if (!hwDict[hwType].ContainsKey(category))
+                        hwDict[hwType][category] = new List<HWiNFO_Reading>();
+
+                    hwDict[hwType][category].Add(r);
+                }
             }
 
-            var   seen              = new HashSet<string>();
-            float bestTemp          = 0, bestLoad = 0;
-            bool  ramUsageUpdated   = false;
+            var seenHwItems = new HashSet<string>();
+            float bestTemp = 0, bestLoad = 0;
 
-            foreach (var (cardKey, card) in cards)
+            // Ordered explicitly
+            var orderedHwTypes = hwDict.Keys
+                .OrderBy(k => k == "Cpu" ? 0 : k == "Motherboard" ? 1 : k.StartsWith("Gpu") ? 2 : 3)
+                .ToList();
+
+            foreach (string hwType in orderedHwTypes)
             {
-                seen.Add(cardKey);
+                seenHwItems.Add(hwType);
 
-                var item = HardwareItems.FirstOrDefault(h =>
-                    h.HardwareType == card.HwType &&
-                    StripSuffix(h.Name) + "::" + h.HardwareType == cardKey);
+                string uiTitle = hwType == "Cpu" ? "PROCESSADOR (CPU)" 
+                               : hwType == "Motherboard" ? "PLACA-MÃE (MB)" 
+                               : hwType.Replace("Gpu", "GPU ");
 
+                string iconStr = hwType == "Cpu" ? "\uE950" 
+                               : hwType == "Motherboard" ? "\uE9A1" 
+                               : hwType.StartsWith("Gpu") ? "\uE9A2" : "\uE7B3";
+
+                var item = HardwareItems.FirstOrDefault(h => h.HardwareType == hwType);
                 if (item == null)
                 {
-                    item = new HardwareItem { Name = card.DisplayName, HardwareType = card.HwType };
+                    item = new HardwareItem
+                    {
+                        Name = uiTitle,
+                        HardwareType = hwType,
+                        Icon = iconStr
+                    };
                     HardwareItems.Add(item);
                 }
 
-                item.Sensors.Clear();
-                var usedIds = new HashSet<uint>();
+                var seenCategories = new HashSet<string>();
+                var orderedCategories = hwDict[hwType].Keys.OrderBy(GetCategoryOrder).ToList();
 
-                foreach (var r in card.Readings.OrderBy(r => r.Label))
+                foreach (string categoryName in orderedCategories)
                 {
-                    if (!usedIds.Add(r.ReadingId)) continue;
-                    string lhmType = ToLhmType(r.Type);
-                    if (lhmType == "") continue;
-
-                    item.Sensors.Add(new HardwareSensor
+                    seenCategories.Add(categoryName);
+                    
+                    var categoryObj = item.Categories.FirstOrDefault(c => c.Name == categoryName);
+                    if (categoryObj == null)
                     {
-                        Name       = r.Label,
-                        SensorType = lhmType,
-                        SensorId   = $"hwinfo::{r.ReadingId}",
-                        Value      = (float)r.Value
-                    });
+                        categoryObj = new SensorCategory
+                        {
+                            Name = categoryName,
+                            AccentColor = GetCategoryAccentColor(hwType, categoryName),
+                            OrderIndex = GetCategoryOrder(categoryName)
+                        };
+                        
+                        // Insert category keeping order
+                        int insertIdx = 0;
+                        while(insertIdx < item.Categories.Count && item.Categories[insertIdx].OrderIndex <= categoryObj.OrderIndex)
+                            insertIdx++;
+                        
+                        item.Categories.Insert(insertIdx, categoryObj);
+                    }
 
-                    if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_TEMP && r.Value > bestTemp && IsMainCpuTemp(r.Label, card.HwType))
-                        bestTemp = (float)r.Value;
+                    var readings = hwDict[hwType][categoryName];
+                    var currentReadingIds = readings.Select(r => $"hwinfo::{r.ReadingId}").ToHashSet();
 
-                    if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_USAGE && card.HwType == "Cpu" && IsTotalCpuLoad(r.Label))
-                        bestLoad = (float)r.Value;
-
-                    if (!ramUsageUpdated && r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_USAGE && card.HwType == "Memory"
-                        && r.Label.Contains("Usage", StringComparison.OrdinalIgnoreCase))
+                    for (int i = categoryObj.Sensors.Count - 1; i >= 0; i--)
                     {
-                        RamUsage = $"{r.Value:F1} %"; RamPercentage = r.Value; ramUsageUpdated = true;
+                        if (!currentReadingIds.Contains(categoryObj.Sensors[i].SensorId))
+                            categoryObj.Sensors.RemoveAt(i);
+                    }
+
+                    var usedIds = new HashSet<uint>();
+
+                    foreach (var r in readings.OrderBy(r => r.Label))
+                    {
+                        if (!usedIds.Add(r.ReadingId)) continue;
+
+                        string sensorId = $"hwinfo::{r.ReadingId}";
+                        var existingSensor = categoryObj.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
+
+                        if (existingSensor == null)
+                        {
+                            categoryObj.Sensors.Add(new HardwareSensor
+                            {
+                                Name       = r.Label,
+                                SensorType = ToLhmType(r.Type),
+                                Unit       = r.Unit,
+                                SensorId   = sensorId,
+                                Value      = (float)r.Value
+                            });
+                        }
+                        else
+                        {
+                            existingSensor.Unit  = r.Unit;
+                            existingSensor.Value = (float)r.Value;
+                        }
+                        
+                        // Stats detection
+                        if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_TEMP && r.Value > bestTemp && IsMainCpuTemp(r.Label, hwType))
+                            bestTemp = (float)r.Value;
+                            
+                        if (r.Type == SENSOR_READING_TYPE.SENSOR_TYPE_USAGE && hwType == "Cpu" && IsTotalCpuLoad(r.Label))
+                            bestLoad = (float)r.Value;
                     }
                 }
 
-                item.RefreshGroups();
+                // Cleanup stale categories
+                var staleCategories = item.Categories.Where(c => !seenCategories.Contains(c.Name)).ToList();
+                foreach (var c in staleCategories) item.Categories.Remove(c);
             }
 
-            var stale = HardwareItems
-                .Where(h => !seen.Contains(StripSuffix(h.Name) + "::" + h.HardwareType))
-                .ToList();
-            foreach (var h in stale) HardwareItems.Remove(h);
+            // Cleanup stale Hardware Components
+            var staleHwItems = HardwareItems.Where(h => !seenHwItems.Contains(h.HardwareType)).ToList();
+            foreach (var h in staleHwItems) HardwareItems.Remove(h);
 
             if (bestTemp > 0) MaxTemp = $"{bestTemp:F0}°";
             if (bestLoad > 0) CpuLoad = $"{bestLoad:F0}%";
@@ -143,30 +220,94 @@ namespace Monitor_Pc.ViewModels
         private void RebuildFromFallback()
         {
             _fallback.Refresh();
-            var cpu = GetOrCreate("CPU", "Cpu");
-            cpu.Sensors.Clear();
+            
+            var cpuItem = HardwareItems.FirstOrDefault(h => h.HardwareType == "Cpu");
+            if (cpuItem == null)
+            {
+                cpuItem = new HardwareItem { Name = "PROCESSADOR (CPU)", HardwareType = "Cpu", Icon = "\uE950" };
+                HardwareItems.Add(cpuItem);
+            }
+
+            var cpuCategories = new Dictionary<string, SensorCategory>();
+
+            SensorCategory GetCat(string catName, string accent, int order)
+            {
+                if (!cpuCategories.TryGetValue(catName, out var cat))
+                {
+                    cat = cpuItem.Categories.FirstOrDefault(c => c.Name == catName);
+                    if (cat == null)
+                    {
+                        cat = new SensorCategory { Name = catName, AccentColor = accent, OrderIndex = order };
+                        
+                        int insertIdx = 0;
+                        while(insertIdx < cpuItem.Categories.Count && cpuItem.Categories[insertIdx].OrderIndex <= cat.OrderIndex)
+                            insertIdx++;
+                        
+                        cpuItem.Categories.Insert(insertIdx, cat);
+                    }
+                    cat.Sensors.Clear();
+                    cpuCategories[catName] = cat;
+                }
+                return cat;
+            }
 
             if (_fallback.TemperatureCelsius >= 20)
-                cpu.Sensors.Add(Mk("CPU Temperature (WMI)", "Temperature", _fallback.TemperatureCelsius));
+                GetCat("Temperaturas", "#EF9A9A", 3).Sensors.Add(Mk("CPU Temperature (WMI)", "Temperature", "°C", _fallback.TemperatureCelsius));
+
             if (_fallback.AverageClockMhz > 100)
-                cpu.Sensors.Add(Mk("CPU Average Clock", "Clock", _fallback.AverageClockMhz));
+                GetCat("Frequências", "#CE93D8", 1).Sensors.Add(Mk("CPU Average Clock", "Clock", "MHz", _fallback.AverageClockMhz));
             for (int i = 0; i < _fallback.PerCoreFrequencyMhz.Count; i++)
                 if (_fallback.PerCoreFrequencyMhz[i] > 100)
-                    cpu.Sensors.Add(Mk($"Core #{i} Clock", "Clock", _fallback.PerCoreFrequencyMhz[i]));
-            if (_fallback.TotalLoadPercent > 0)
-                cpu.Sensors.Add(Mk("CPU Total Load", "Load", _fallback.TotalLoadPercent));
-            for (int i = 0; i < _fallback.PerCoreLoadPercent.Count; i++)
-                cpu.Sensors.Add(Mk($"Core #{i} Load", "Load", _fallback.PerCoreLoadPercent[i]));
-            if (_fallback.EstimatedWatts > 0)
-                cpu.Sensors.Add(Mk("CPU Power (Estimated)", "Power", _fallback.EstimatedWatts));
+                    GetCat("Frequências", "#CE93D8", 1).Sensors.Add(Mk($"Core #{i} Clock", "Clock", "MHz", _fallback.PerCoreFrequencyMhz[i]));
 
-            cpu.RefreshGroups();
+            if (_fallback.TotalLoadPercent > 0)
+                GetCat("Uso", "#B39DDB", 2).Sensors.Add(Mk("CPU Total Load", "Load", "%", _fallback.TotalLoadPercent));
+            for (int i = 0; i < _fallback.PerCoreLoadPercent.Count; i++)
+                GetCat("Uso", "#B39DDB", 2).Sensors.Add(Mk($"Core #{i} Load", "Load", "%", _fallback.PerCoreLoadPercent[i]));
+
+            if (_fallback.EstimatedWatts > 0)
+                GetCat("Potência", "#80CBC4", 5).Sensors.Add(Mk("CPU Power (Estimated)", "Power", "W", _fallback.EstimatedWatts));
 
             if (_fallback.TemperatureCelsius >= 20) MaxTemp = $"{_fallback.TemperatureCelsius:F0}°";
             if (_fallback.TotalLoadPercent    >  0) CpuLoad = $"{_fallback.TotalLoadPercent:F0}%";
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
+
+        private static string GetCategory(SENSOR_READING_TYPE t) => t switch
+        {
+            SENSOR_READING_TYPE.SENSOR_TYPE_CLOCK   => "Frequências",
+            SENSOR_READING_TYPE.SENSOR_TYPE_VOLT    => "Tensões",
+            SENSOR_READING_TYPE.SENSOR_TYPE_TEMP    => "Temperaturas",
+            SENSOR_READING_TYPE.SENSOR_TYPE_POWER   => "Potência",
+            SENSOR_READING_TYPE.SENSOR_TYPE_USAGE   => "Uso",
+            SENSOR_READING_TYPE.SENSOR_TYPE_FAN     => "Ventoinhas",
+            _                                       => "Outros"
+        };
+
+        private static int GetCategoryOrder(string cat) => cat switch
+        {
+            "Frequências"  => 1,
+            "Uso"          => 2,
+            "Temperaturas" => 3,
+            "Tensões"      => 4,
+            "Potência"     => 5,
+            _              => 99
+        };
+
+        private static string GetCategoryAccentColor(string hwType, string category)
+        {
+            return category switch
+            {
+                "Frequências"  => hwType.StartsWith("Gpu") ? "#90CAF9" : "#DF80FF", // Blue GPU / Purple CPU
+                "Tensões"      => hwType.StartsWith("Gpu") ? "#FFF176" : hwType == "Motherboard" ? "#FFE082" : "#FFAB91", // Yellow GPU / Orange CPU
+                "Temperaturas" => "#EF9A9A", // Red
+                "Potência"     => "#80CBC4", // Teal
+                "Uso"          => "#B39DDB", // Deep Purple
+                "Ventoinhas"   => "#90CAF9", // Blue
+                _              => "#AAFFFFFF"
+            };
+        }
 
         private static string ToLhmType(SENSOR_READING_TYPE t) => t switch
         {
@@ -176,8 +317,7 @@ namespace Monitor_Pc.ViewModels
             SENSOR_READING_TYPE.SENSOR_TYPE_POWER   => "Power",
             SENSOR_READING_TYPE.SENSOR_TYPE_CLOCK   => "Clock",
             SENSOR_READING_TYPE.SENSOR_TYPE_USAGE   => "Load",
-            SENSOR_READING_TYPE.SENSOR_TYPE_OTHER   => "Factor",
-            _                                       => ""
+            _                                       => "Factor"
         };
 
         private static string DetectHwType(string name)
@@ -229,12 +369,145 @@ namespace Monitor_Pc.ViewModels
             return item;
         }
 
-        private static HardwareSensor Mk(string name, string type, float value) =>
-            new() { Name = name, SensorType = type, SensorId = $"fb::{type}::{name}", Value = value };
+        private static HardwareSensor Mk(string name, string type, string unit, float value) =>
+            new() { Name = name, SensorType = type, Unit = unit, SensorId = $"fb::{type}::{name}", Value = value };
+
+        // ── Logger commands ────────────────────────────────────────────────
+
+        [RelayCommand]
+        private void ToggleLogging()
+        {
+            if (_logger.IsActive)
+            {
+                _logger.Stop();
+                IsLogging         = false;
+                LoggingStatusText = "Logger parado";
+            }
+            else
+            {
+                _logger.Start();
+                IsLogging         = true;
+                LogFilePath       = _logger.FilePath;
+                LogEntryCount     = 0;
+                LoggingStatusText = "Iniciando gravação...";
+            }
+        }
+
+        [RelayCommand]
+        private void OpenLogFolder()
+        {
+            string dir = Path.GetDirectoryName(_logger.FilePath)
+                ?? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "MonitorPC_Logs");
+            try { System.Diagnostics.Process.Start("explorer.exe", dir); }
+            catch { }
+        }
+
+        [RelayCommand]
+        private void DumpSensors()
+        {
+            try
+            {
+                if (!_reader.Refresh()) return;
+
+                string path = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                    "HWiNFO_SensorDump.txt");
+
+                using var sw = new StreamWriter(path, false, System.Text.Encoding.UTF8);
+                sw.WriteLine($"=== HWiNFO Sensor Dump === {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sw.WriteLine($"Total readings: {_reader.AllReadings.Count}");
+                sw.WriteLine();
+
+                var groups = _reader.AllReadings
+                    .GroupBy(r => r.SensorIndex)
+                    .OrderBy(g => g.Key);
+
+                foreach (var g in groups)
+                {
+                    string sName = g.First().SensorName;
+                    string detected = DetectHwType(sName);
+                    sw.WriteLine($"╔══ Sensor #{g.Key}: \"{sName}\" → DetectHwType = {detected}");
+
+                    foreach (var r in g.OrderBy(r => r.Type).ThenBy(r => r.Label))
+                    {
+                        sw.WriteLine($"║  [{r.Type,-25}] {r.Label,-45} = {r.Value,12:F3} {r.Unit}");
+                    }
+                    sw.WriteLine("╚══");
+                    sw.WriteLine();
+                }
+
+                System.Diagnostics.Process.Start("notepad.exe", path);
+            }
+            catch { }
+        }
+
+        [ObservableProperty] private string exportStatusText = "";
+
+        [RelayCommand]
+        private void ExportToExcel()
+        {
+            try
+            {
+                string csvPath = _logger.FilePath;
+                if (string.IsNullOrEmpty(csvPath) || !File.Exists(csvPath))
+                {
+                    // Try to find the most recent log file
+                    string logsDir = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        "MonitorPC_Logs");
+
+                    if (!Directory.Exists(logsDir))
+                    {
+                        ExportStatusText = "Nenhum log encontrado";
+                        return;
+                    }
+
+                    csvPath = Directory.GetFiles(logsDir, "MonitorLog_*.csv")
+                        .OrderByDescending(f => f)
+                        .FirstOrDefault() ?? "";
+
+                    if (string.IsNullOrEmpty(csvPath))
+                    {
+                        ExportStatusText = "Nenhum CSV encontrado";
+                        return;
+                    }
+                }
+
+                // Stop logging temporarily to flush data
+                bool wasLogging = _logger.IsActive;
+                if (wasLogging) _logger.Stop();
+
+                ExportStatusText = "Exportando...";
+                string xlsxPath = ExcelExporter.ExportCsvToExcel(csvPath);
+                ExportStatusText = "✅ Excel gerado!";
+
+                // Restart logging if it was active
+                if (wasLogging)
+                {
+                    _logger.Start();
+                    IsLogging = true;
+                    LogFilePath = _logger.FilePath;
+                }
+
+                // Open the Excel file
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = xlsxPath,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                ExportStatusText = $"Erro: {ex.Message}";
+            }
+        }
 
         public void Dispose()
         {
             _timer.Stop();
+            _logger.Dispose();
             _reader.Dispose();
             _fallback.Dispose();
         }
@@ -243,10 +516,11 @@ namespace Monitor_Pc.ViewModels
 
         private class CardData
         {
-            public string               DisplayName { get; set; }
-            public string               HwType      { get; }
-            public List<HWiNFO_Reading> Readings    { get; } = new();
-            public CardData(string name, string hwType) { DisplayName = name; HwType = hwType; }
+            public string DisplayName { get; set; }
+            public string HwType { get; }
+            public string Category { get; }
+            public List<HWiNFO_Reading> Readings { get; } = new();
+            public CardData(string d, string t, string c) { DisplayName = d; HwType = t; Category = c; }
         }
     }
 }

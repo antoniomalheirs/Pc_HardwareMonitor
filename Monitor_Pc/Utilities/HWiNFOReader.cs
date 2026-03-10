@@ -311,9 +311,19 @@ namespace Monitor_Pc.Utilities
 
         private static T ReadStruct<T>(MemoryMappedViewAccessor acc, long offset) where T : struct
         {
-            T[] buf = new T[1];
-            acc.ReadArray(offset, buf, 0, 1);
-            return buf[0];
+            int size = Marshal.SizeOf<T>();
+            byte[] buf = new byte[size];
+            acc.ReadArray(offset, buf, 0, size);
+
+            GCHandle handle = GCHandle.Alloc(buf, GCHandleType.Pinned);
+            try
+            {
+                return Marshal.PtrToStructure<T>(handle.AddrOfPinnedObject());
+            }
+            finally
+            {
+                handle.Free();
+            }
         }
 
         public void Dispose()

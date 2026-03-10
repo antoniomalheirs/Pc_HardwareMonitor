@@ -126,6 +126,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <!-- Logo -->
@@ -175,8 +176,204 @@
                         </Border>
                     </StackPanel>
 
+                    <!-- ═══ LOGGER CONTROLS ═══════════════════════════════════ -->
+                    <StackPanel Grid.Row="3" Margin="0,0,0,20">
+                        <TextBlock Text="LOGGER" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,12"/>
+                        <Border Background="#08FFFFFF" CornerRadius="14" Padding="18,14"
+                                BorderBrush="#10FFFFFF" BorderThickness="1">
+                            <StackPanel>
+                                <!-- Status indicator + Toggle -->
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Recording dot -->
+                                    <Ellipse x:Name="RecDot" Grid.Column="0" Width="12" Height="12" VerticalAlignment="Center">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="#44FFFFFF"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsLogging}" Value="True">
+                                                        <Setter Property="Fill" Value="#FF3D00"/>
+                                                        <Setter Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="#FF3D00" BlurRadius="14" ShadowDepth="0"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding LoggingStatusText}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#AAFFFFFF" VerticalAlignment="Center" Margin="10,0,0,0"
+                                               TextTrimming="CharacterEllipsis"/>
+
+                                    <!-- Toggle button -->
+                                    <Button Grid.Column="2" Command="{Binding ToggleLoggingCommand}"
+                                            Height="28" Padding="14,0" VerticalAlignment="Center">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#1A00E676"/>
+                                                <Setter Property="Foreground" Value="{StaticResource AccentGreen}"/>
+                                                <Setter Property="FontSize" Value="10"/>
+                                                <Setter Property="FontWeight" Value="Black"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="#3300E676"/>
+                                                <Setter Property="Content" Value="⏺ INICIAR LOG"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsLogging}" Value="True">
+                                                        <Setter Property="Content" Value="⏹ PARAR LOG"/>
+                                                        <Setter Property="Background" Value="#1AFF3D00"/>
+                                                        <Setter Property="Foreground" Value="{StaticResource AccentRed}"/>
+                                                        <Setter Property="BorderBrush" Value="#33FF3D00"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Entry count -->
+                                <Border Background="#06FFFFFF" CornerRadius="8" Padding="12,8" Margin="0,0,0,8"
+                                        Visibility="{Binding IsLogging, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Entradas: " FontSize="10" Foreground="#55FFFFFF" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding LogEntryCount}" FontSize="14" FontWeight="Black"
+                                                   Foreground="{StaticResource AccentCiano}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- File path -->
+                                <TextBlock Text="{Binding LogFilePath}" FontSize="9" Foreground="#33FFFFFF"
+                                           TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="32"
+                                           Visibility="{Binding IsLogging, Converter={StaticResource BoolToVis}}"/>
+
+                                <!-- Open folder button -->
+                                <Button Command="{Binding OpenLogFolderCommand}" Margin="0,8,0,0"
+                                        Height="26" HorizontalAlignment="Stretch">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#08FFFFFF"/>
+                                            <Setter Property="Foreground" Value="#66FFFFFF"/>
+                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Content" Value="📂  ABRIR PASTA DE LOGS"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="6" Padding="8,4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#12FFFFFF"/>
+                                                    <Setter Property="Foreground" Value="#AAFFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <TextBlock Text="{Binding ExportStatusText}" Foreground="#22C55E" Margin="0,8,0,0"
+                                           FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+
+                                <Button Command="{Binding ExportToExcelCommand}" Margin="0,4,0,0"
+                                        Height="32" HorizontalAlignment="Stretch">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#1A22C55E"/>
+                                            <Setter Property="Foreground" Value="#22C55E"/>
+                                            <Setter Property="FontSize" Value="11"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="BorderThickness" Value="1"/>
+                                            <Setter Property="BorderBrush" Value="#4022C55E"/>
+                                            <Setter Property="Content" Value="📊  EXPORTAR PARA EXCEL"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="6">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#3322C55E"/>
+                                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                    <Setter Property="BorderBrush" Value="#22C55E"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <!-- Dump all sensors to file -->
+                                <Button Command="{Binding DumpSensorsCommand}" Margin="0,8,0,0"
+                                        Height="26" HorizontalAlignment="Stretch"
+                                        Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#08FFFFFF"/>
+                                            <Setter Property="Foreground" Value="#44FFFFFF"/>
+                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Content" Value="🔍  DUMP SENSORES"/>
+                                            <Setter Property="Cursor" Value="Hand"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="6" Padding="8,4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#12FFFFFF"/>
+                                                    <Setter Property="Foreground" Value="#AAFFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
                     <!-- ⚠️ Diagnostic panel — shows ONLY when HWiNFO is not connected -->
-                    <Border Grid.Row="3" Style="{StaticResource DiagPanel}"
+                    <Border Grid.Row="4" Style="{StaticResource DiagPanel}"
                             Margin="0,0,0,20" Padding="18,16" CornerRadius="16"
                             Background="#1AFF9E00" BorderBrush="#44FF9E00" BorderThickness="1">
                         <StackPanel>
@@ -210,7 +407,7 @@
                     </Border>
 
                     <!-- Data source indicator -->
-                    <Border Grid.Row="4" Padding="20,18" CornerRadius="20"
+                    <Border Grid.Row="5" Padding="20,18" CornerRadius="20"
                             Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="DATA SOURCE" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
@@ -324,19 +521,19 @@
                 <ItemsControl ItemsSource="{Binding HardwareItems}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <UniformGrid Columns="2" VerticalAlignment="Top"/>
+                            <StackPanel Orientation="Vertical" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource Card}" VerticalAlignment="Top">
+                            <Border Style="{StaticResource Card}" VerticalAlignment="Top" Margin="0,0,0,20">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Card header -->
+                                    <!-- Main Hardware Header -->
                                     <Border Background="#06FFFFFF" CornerRadius="20,20,0,0"
                                             Padding="22,16" BorderBrush="#10FFFFFF" BorderThickness="0,0,0,1">
                                         <StackPanel Orientation="Horizontal">
@@ -346,184 +543,59 @@
                                                            Foreground="{StaticResource AccentCiano}"
                                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Grid>
-                                            <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                            <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="Bold"
                                                        Margin="14,0,0,0" VerticalAlignment="Center"
                                                        TextTrimming="CharacterEllipsis" MaxWidth="380"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <!-- Sensor groups -->
+                                    <!-- Sensor Categories Array -->
                                     <Border Grid.Row="1" Padding="22,16">
-                                        <StackPanel>
-
-                                            <!-- LOADS -->
-                                            <StackPanel Visibility="{Binding HasLoads, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                <TextBlock Text="CARGA / USO" Style="{StaticResource GroupLabel}"/>
-                                                <ItemsControl ItemsSource="{Binding Loads}">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Grid Margin="0,0,10,7">
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="*"/>
-                                                                    <ColumnDefinition Width="Auto"/>
-                                                                </Grid.ColumnDefinitions>
-                                                                <StackPanel>
-                                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource SensorName}" FontSize="9" Foreground="#55FFFFFF"/>
-                                                                    <ProgressBar Value="{Binding ValuePercentage}" Height="3"
-                                                                                 Background="#0AFFFFFF" Foreground="{StaticResource AccentPurple}"
-                                                                                 BorderThickness="0" Margin="0,3,0,2"/>
-                                                                    <ProgressBar Value="{Binding LinkedSensor.ValuePercentage}" Height="2"
-                                                                                 Background="#0AFFFFFF" Foreground="{StaticResource AccentCiano}"
-                                                                                 BorderThickness="0" Opacity="0.7"
-                                                                                 Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVis}}"/>
-                                                                </StackPanel>
-                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                                                    <TextBlock Text="{Binding FormattedValue}" FontSize="10"
-                                                                               Foreground="{StaticResource AccentPurple}" FontWeight="Black" HorizontalAlignment="Right"/>
-                                                                    <TextBlock Text="{Binding LinkedSensor.FormattedValue}" FontSize="9"
-                                                                               Foreground="{StaticResource AccentCiano}" FontWeight="Bold"
-                                                                               HorizontalAlignment="Right" Opacity="0.8"
-                                                                               Visibility="{Binding LinkedSensor, Converter={StaticResource NullToVis}}"/>
-                                                                </StackPanel>
-                                                            </Grid>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <!-- LEFT col -->
-                                                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-
-                                                    <StackPanel Visibility="{Binding HasClocks, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="FREQUÊNCIA" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Clocks}">
+                                        <ItemsControl ItemsSource="{Binding Categories}">
+                                            <!-- Layout of categories: wrap nicely -->
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" ItemWidth="300" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="0,0,30,20">
+                                                        
+                                                        <!-- Category Label (e.g. Frequências) -->
+                                                        <Border Background="#0DFFFFFF" CornerRadius="4" Padding="8,4" Margin="0,0,0,12" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold">
+                                                                <TextBlock.Foreground>
+                                                                    <SolidColorBrush Color="{Binding AccentColor}"/>
+                                                                </TextBlock.Foreground>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    
+                                                        <!-- Category Sensors -->
+                                                        <ItemsControl ItemsSource="{Binding Sensors}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="#FFFFFF"/>
+                                                                    <Grid Margin="0,0,0,6">
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="150"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorName}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="140"/>
+                                                                        <TextBlock Grid.Column="1" Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" FontWeight="Bold" VerticalAlignment="Center">
+                                                                            <TextBlock.Foreground>
+                                                                                <SolidColorBrush Color="{Binding DataContext.AccentColor, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"/>
+                                                                            </TextBlock.Foreground>
+                                                                        </TextBlock>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
+                                                        
                                                     </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasPower, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="ENERGIA" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Power}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentCiano}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasCurrent, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="CORRENTE" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Current}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasFactor, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="OUTROS" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Factor}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="#AAFFFFFF"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasFans, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="VENTOINHAS" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Fans}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentGreen}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasThroughput, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="THROUGHPUT" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Throughput}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentYellow}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                </StackPanel>
-
-                                                <!-- RIGHT col -->
-                                                <StackPanel Grid.Column="1" Margin="14,0,0,0">
-
-                                                    <StackPanel Visibility="{Binding HasTemperatures, Converter={StaticResource BoolToVis}}" Margin="0,0,0,16">
-                                                        <TextBlock Text="TEMPERATURA" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Temperatures}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentRed}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                    <StackPanel Visibility="{Binding HasVoltages, Converter={StaticResource BoolToVis}}">
-                                                        <TextBlock Text="VOLTAGEM" Style="{StaticResource GroupLabel}"/>
-                                                        <ItemsControl ItemsSource="{Binding Voltages}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,0,0,4">
-                                                                        <TextBlock Text="{Binding Name}"           Style="{StaticResource SensorName}"/>
-                                                                        <TextBlock Text="{Binding FormattedValue}"  Style="{StaticResource SensorValue}" Foreground="{StaticResource AccentOrange}"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                    </StackPanel>
-
-                                                </StackPanel>
-                                            </Grid>
-
-                                        </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </Border>
                                 </Grid>
                             </Border>
