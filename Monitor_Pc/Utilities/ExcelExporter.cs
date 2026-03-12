@@ -1,94 +1,126 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using ClosedXML.Excel;
+using OfficeOpenXml;
+using OfficeOpenXml.Drawing.Chart;
+using OfficeOpenXml.Style;
+using OfficeOpenXml.ConditionalFormatting;
 
 namespace Monitor_Pc.Utilities
 {
-    /// <summary>
-    /// Lê um CSV gerado pelo TelemetryLogger e exporta um .xlsx profissional
-    /// com abas separadas por categoria, formatação condicional e cores.
-    /// </summary>
     public static class ExcelExporter
     {
-        // ── Category definitions ──────────────────────────────────────────────
-
-        private static readonly (string SheetName, string Prefix, string SensorType, XLColor HeaderColor, XLColor AccentColor, string NumberFormat)[] Categories =
+        static ExcelExporter()
         {
-            ("CPU Frequências",  "CPU",  "Clock",       XLColor.FromHtml("#7B1FA2"), XLColor.FromHtml("#CE93D8"), "#,##0.0 \"MHz\""),
-            ("CPU Tensões",      "CPU",  "Voltage",     XLColor.FromHtml("#E65100"), XLColor.FromHtml("#FFAB91"), "0.000 \"V\""),
-            ("CPU Temperaturas", "CPU",  "Temperature", XLColor.FromHtml("#C62828"), XLColor.FromHtml("#EF9A9A"), "0.0 \"°C\""),
-            ("CPU Potência",     "CPU",  "Power",       XLColor.FromHtml("#00695C"), XLColor.FromHtml("#80CBC4"), "0.0 \"W\""),
-            ("GPU Frequências",  "GPU",  "Clock",       XLColor.FromHtml("#1565C0"), XLColor.FromHtml("#90CAF9"), "#,##0.0 \"MHz\""),
-            ("GPU Tensões",      "GPU",  "Voltage",     XLColor.FromHtml("#F57F17"), XLColor.FromHtml("#FFF176"), "0.000 \"V\""),
-            ("GPU Temperaturas", "GPU",  "Temperature", XLColor.FromHtml("#B71C1C"), XLColor.FromHtml("#EF9A9A"), "0.0 \"°C\""),
-            ("GPU Potência",     "GPU",  "Power",       XLColor.FromHtml("#004D40"), XLColor.FromHtml("#80CBC4"), "0.0 \"W\""),
-            ("MB Tensões",       "MB",   "Voltage",     XLColor.FromHtml("#FF6F00"), XLColor.FromHtml("#FFE082"), "0.000 \"V\""),
-            ("MB Temperaturas",  "MB",   "Temperature", XLColor.FromHtml("#D84315"), XLColor.FromHtml("#FFAB91"), "0.0 \"°C\""),
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        }
+
+        private static readonly (string SheetName, string Prefix, string SensorType, Color HeaderColor, Color AccentColor, string NumberFormat)[] Categories =
+        {
+            ("CPU Frequências",  "CPU",  "Clock",       ColorTranslator.FromHtml("#7B1FA2"), ColorTranslator.FromHtml("#CE93D8"), "#,##0.0 \"MHz\""),
+            ("CPU Tensões",      "CPU",  "Voltage",     ColorTranslator.FromHtml("#E65100"), ColorTranslator.FromHtml("#FFAB91"), "0.000 \"V\""),
+            ("CPU Temperaturas", "CPU",  "Temperature", ColorTranslator.FromHtml("#C62828"), ColorTranslator.FromHtml("#EF9A9A"), "0.0 \"°C\""),
+            ("CPU Potência",     "CPU",  "Power",       ColorTranslator.FromHtml("#00695C"), ColorTranslator.FromHtml("#80CBC4"), "0.0 \"W\""),
+            ("GPU Frequências",  "GPU",  "Clock",       ColorTranslator.FromHtml("#1565C0"), ColorTranslator.FromHtml("#90CAF9"), "#,##0.0 \"MHz\""),
+            ("GPU Tensões",      "GPU",  "Voltage",     ColorTranslator.FromHtml("#F57F17"), ColorTranslator.FromHtml("#FFF176"), "0.000 \"V\""),
+            ("GPU Temperaturas", "GPU",  "Temperature", ColorTranslator.FromHtml("#B71C1C"), ColorTranslator.FromHtml("#EF9A9A"), "0.0 \"°C\""),
+            ("GPU Potência",     "GPU",  "Power",       ColorTranslator.FromHtml("#004D40"), ColorTranslator.FromHtml("#80CBC4"), "0.0 \"W\""),
+            ("MB Tensões",       "MB",   "Voltage",     ColorTranslator.FromHtml("#FF6F00"), ColorTranslator.FromHtml("#FFE082"), "0.000 \"V\""),
+            ("MB Temperaturas",  "MB",   "Temperature", ColorTranslator.FromHtml("#D84315"), ColorTranslator.FromHtml("#FFAB91"), "0.0 \"°C\""),
         };
 
-        // ── Export ─────────────────────────────────────────────────────────────
+        private static readonly Color[] ChartColors = new[]
+        {
+            Color.FromArgb(33, 150, 243),
+            Color.FromArgb(244, 67, 54),
+            Color.FromArgb(76, 175, 80),
+            Color.FromArgb(255, 152, 0),
+            Color.FromArgb(156, 39, 176),
+            Color.FromArgb(0, 188, 212),
+            Color.FromArgb(255, 193, 7),
+            Color.FromArgb(233, 30, 99),
+            Color.FromArgb(0, 150, 136),
+            Color.FromArgb(139, 195, 74)
+        };
 
         public static string ExportCsvToExcel(string csvPath)
         {
             if (!File.Exists(csvPath))
                 throw new FileNotFoundException("CSV não encontrado", csvPath);
 
+            // Phase 1: Parse CSV using CurrentCulture (pt-BR uses commas as decimal separator)
             var (headers, rows) = ParseCsv(csvPath);
-
             string xlsxPath = Path.ChangeExtension(csvPath, ".xlsx");
 
-            using var wb = new XLWorkbook();
-
-            // ── Resumo (overview) ─────────────────────────────────────────
-            CreateOverviewSheet(wb, headers, rows, csvPath);
-
-            // ── Abas por categoria ────────────────────────────────────────
-            foreach (var cat in Categories)
+            if (File.Exists(xlsxPath))
             {
-                var colIndices = FindColumns(headers, cat.Prefix, cat.SensorType);
-                if (colIndices.Count == 0) continue;
-
-                CreateCategorySheet(wb, cat.SheetName, headers, rows,
-                    colIndices, cat.HeaderColor, cat.AccentColor, cat.NumberFormat, cat.SensorType);
+                try { File.Delete(xlsxPath); } catch { /* ignore */ }
             }
 
-            // ── Aba "Dados Brutos" ────────────────────────────────────────
-            CreateRawSheet(wb, headers, rows);
+            // Phase 2: Generate Excel using InvariantCulture to prevent XML serialization issues
+            // EPPlus serializes chart axis values, CF thresholds, etc. using CurrentCulture,
+            // which on pt-BR systems writes commas instead of dots, corrupting the xlsx.
+            var originalCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            var originalUICulture = System.Threading.Thread.CurrentThread.CurrentUICulture;
+            try
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+                System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
 
-            wb.SaveAs(xlsxPath);
-            return xlsxPath;
+                using var package = new ExcelPackage();
+                var wb = package.Workbook;
+
+                CreateOverviewSheet(wb, headers, rows, csvPath);
+
+                foreach (var cat in Categories)
+                {
+                    var colIndices = FindColumns(headers, cat.Prefix, cat.SensorType);
+                    if (colIndices.Count == 0) continue;
+
+                    CreateCategorySheet(wb, cat.SheetName, headers, rows,
+                        colIndices, cat.HeaderColor, cat.AccentColor, cat.NumberFormat, cat.SensorType);
+                }
+
+                CreateRawSheet(wb, headers, rows);
+
+                package.SaveAs(new FileInfo(xlsxPath));
+                return xlsxPath;
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = originalCulture;
+                System.Threading.Thread.CurrentThread.CurrentUICulture = originalUICulture;
+            }
         }
 
-        // ── Overview sheet ────────────────────────────────────────────────────
-
-        private static void CreateOverviewSheet(IXLWorkbook wb,
-            string[] headers, List<string[]> rows, string csvPath)
+        private static void CreateOverviewSheet(ExcelWorkbook wb, string[] headers, List<string[]> rows, string csvPath)
         {
-            var ws = wb.AddWorksheet("Resumo");
-            ws.SheetView.View = XLSheetViewOptions.Normal;
+            var ws = wb.Worksheets.Add("Resumo");
+            ws.View.ShowGridLines = false;
 
-            // Title
-            ws.Cell(1, 1).Value = "MONITOR PC — RELATÓRIO DE TELEMETRIA";
-            ws.Cell(1, 1).Style.Font.Bold = true;
-            ws.Cell(1, 1).Style.Font.FontSize = 18;
-            ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
-            ws.Range(1, 1, 1, 5).Merge();
-            ws.Range(1, 1, 1, 5).Style.Fill.BackgroundColor = XLColor.FromHtml("#1A1A2E");
-            ws.Range(1, 1, 1, 5).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Cells["A1"].Value = "MONITOR PC — RELATÓRIO DE TELEMETRIA";
+            var titleRange = ws.Cells["A1:E1"];
+            titleRange.Merge = true;
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Font.Size = 18;
+            titleRange.Style.Font.Color.SetColor(Color.White);
+            titleRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
+            titleRange.Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#1A1A2E"));
+            titleRange.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            titleRange.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
             ws.Row(1).Height = 40;
 
-            // Stats
             int r = 3;
             void AddStat(string label, string value)
             {
-                ws.Cell(r, 1).Value = label;
-                ws.Cell(r, 1).Style.Font.Bold = true;
-                ws.Cell(r, 1).Style.Font.FontColor = XLColor.FromHtml("#666666");
-                ws.Cell(r, 2).Value = value;
-                ws.Cell(r, 2).Style.Font.Bold = true;
+                ws.Cells[r, 1].Value = label;
+                ws.Cells[r, 1].Style.Font.Bold = true;
+                ws.Cells[r, 1].Style.Font.Color.SetColor(ColorTranslator.FromHtml("#666666"));
+                ws.Cells[r, 2].Value = value;
+                ws.Cells[r, 2].Style.Font.Bold = true;
                 r++;
             }
 
@@ -104,10 +136,10 @@ namespace Monitor_Pc.Utilities
             AddStat("Sensores Monitorados:", (headers.Length - 1).ToString());
 
             r += 1;
-            ws.Cell(r, 1).Value = "ABAS DISPONÍVEIS";
-            ws.Cell(r, 1).Style.Font.Bold = true;
-            ws.Cell(r, 1).Style.Font.FontSize = 13;
-            ws.Cell(r, 1).Style.Font.FontColor = XLColor.FromHtml("#1A1A2E");
+            ws.Cells[r, 1].Value = "ABAS DISPONÍVEIS";
+            ws.Cells[r, 1].Style.Font.Bold = true;
+            ws.Cells[r, 1].Style.Font.Size = 13;
+            ws.Cells[r, 1].Style.Font.Color.SetColor(ColorTranslator.FromHtml("#1A1A2E"));
             r++;
 
             foreach (var cat in Categories)
@@ -115,83 +147,81 @@ namespace Monitor_Pc.Utilities
                 var colCount = FindColumns(headers, cat.Prefix, cat.SensorType).Count;
                 if (colCount == 0) continue;
 
-                ws.Cell(r, 1).Value = $"📊 {cat.SheetName}";
-                ws.Cell(r, 1).Style.Font.FontColor = cat.HeaderColor;
-                ws.Cell(r, 1).Style.Font.Bold = true;
-                ws.Cell(r, 2).Value = $"{colCount} sensores";
-                ws.Cell(r, 2).Style.Font.FontColor = XLColor.FromHtml("#999999");
+                ws.Cells[r, 1].Value = $"📊 {cat.SheetName}";
+                ws.Cells[r, 1].Style.Font.Color.SetColor(cat.HeaderColor);
+                ws.Cells[r, 1].Style.Font.Bold = true;
+                ws.Cells[r, 2].Value = $"{colCount} sensores";
+                ws.Cells[r, 2].Style.Font.Color.SetColor(ColorTranslator.FromHtml("#999999"));
                 r++;
             }
 
-            r += 1;
-            ws.Cell(r, 1).Value = "💡 DICA: Selecione colunas de dados em qualquer aba";
-            ws.Cell(r + 1, 1).Value = "    e use Inserir → Gráfico para criar visualizações!";
-            ws.Cell(r, 1).Style.Font.FontColor = XLColor.FromHtml("#0288D1");
-            ws.Cell(r + 1, 1).Style.Font.FontColor = XLColor.FromHtml("#0288D1");
-
-            ws.Column(1).Width = 30;
-            ws.Column(2).Width = 40;
+            ws.Column(1).Width = 35;
+            ws.Column(2).Width = 45;
         }
 
-        // ── Category sheet ────────────────────────────────────────────────────
-
-        private static void CreateCategorySheet(IXLWorkbook wb,
-            string sheetName, string[] headers, List<string[]> rows,
-            List<int> colIndices,
-            XLColor headerColor, XLColor accentColor, string numberFormat, string sensorType)
+        private static void CreateCategorySheet(ExcelWorkbook wb, string sheetName, string[] headers, List<string[]> rows,
+            List<int> colIndices, Color headerColor, Color accentColor, string numberFormat, string sensorType)
         {
-            var ws = wb.AddWorksheet(sheetName);
+            var ws = wb.Worksheets.Add(sheetName);
 
-            // ── Header row ────────────────────────────────────────────────
-            ws.Cell(1, 1).Value = "Timestamp";
-            ws.Cell(1, 1).Style.Font.Bold = true;
-            ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
-            ws.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#333333");
+            ws.Cells[1, 1].Value = "Timestamp";
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Color.SetColor(Color.White);
+            ws.Cells[1, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+            ws.Cells[1, 1].Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#333333"));
 
             for (int c = 0; c < colIndices.Count; c++)
             {
-                string colName = headers[colIndices[c]];
-                // Remove prefix (CPU_Clock_, GPU_Voltage_, etc.)
-                string cleanName = CleanColumnName(colName);
-
-                ws.Cell(1, c + 2).Value = cleanName;
-                ws.Cell(1, c + 2).Style.Font.Bold = true;
-                ws.Cell(1, c + 2).Style.Font.FontColor = XLColor.White;
-                ws.Cell(1, c + 2).Style.Fill.BackgroundColor = headerColor;
-                ws.Cell(1, c + 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                string cleanName = CleanColumnName(headers[colIndices[c]]);
+                var cell = ws.Cells[1, c + 2];
+                cell.Value = cleanName;
+                cell.Style.Font.Bold = true;
+                cell.Style.Font.Color.SetColor(Color.White);
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(headerColor);
+                cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
             }
 
-            // ── Stats row (Min / Max / Avg) ───────────────────────────────
             int statsRow = 2;
-            ws.Cell(statsRow, 1).Value = "📈 MIN / MÁX / MÉD";
-            ws.Cell(statsRow, 1).Style.Font.Bold = true;
-            ws.Cell(statsRow, 1).Style.Font.FontColor = headerColor;
-            ws.Cell(statsRow, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#F5F5F5");
+            ws.Cells[statsRow, 1].Value = "📈 MIN / MÁX / MÉD";
+            ws.Cells[statsRow, 1].Style.Font.Bold = true;
+            ws.Cells[statsRow, 1].Style.Font.Color.SetColor(headerColor);
+            ws.Cells[statsRow, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+            ws.Cells[statsRow, 1].Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#F5F5F5"));
 
             for (int c = 0; c < colIndices.Count; c++)
             {
                 var values = GetNumericValues(rows, colIndices[c]);
+                var cell = ws.Cells[statsRow, c + 2];
                 if (values.Count > 0)
                 {
-                    ws.Cell(statsRow, c + 2).Value =
-                        $"{values.Min():F2} / {values.Max():F2} / {values.Average():F2}";
+                    cell.Value = $"{values.Min():F2} / {values.Max():F2} / {values.Average():F2}";
                 }
                 else
                 {
-                    ws.Cell(statsRow, c + 2).Value = "--";
+                    cell.Value = "--";
                 }
-                ws.Cell(statsRow, c + 2).Style.Font.FontSize = 9;
-                ws.Cell(statsRow, c + 2).Style.Font.FontColor = XLColor.FromHtml("#555555");
-                ws.Cell(statsRow, c + 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#F5F5F5");
-                ws.Cell(statsRow, c + 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                cell.Style.Font.Size = 9;
+                cell.Style.Font.Color.SetColor(ColorTranslator.FromHtml("#555555"));
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#F5F5F5"));
+                cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
             }
 
-            // ── Data rows ─────────────────────────────────────────────────
             int dataStart = 3;
             for (int i = 0; i < rows.Count; i++)
             {
                 int row = dataStart + i;
-                ws.Cell(row, 1).Value = rows[i][0]; // Timestamp
+                
+                if (DateTime.TryParseExact(rows[i][0], "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt))
+                {
+                    ws.Cells[row, 1].Value = dt;
+                    ws.Cells[row, 1].Style.Numberformat.Format = "HH:mm:ss";
+                }
+                else
+                {
+                    ws.Cells[row, 1].Value = rows[i][0];
+                }
 
                 for (int c = 0; c < colIndices.Count; c++)
                 {
@@ -199,149 +229,343 @@ namespace Monitor_Pc.Utilities
                     if (colIdx < rows[i].Length &&
                         double.TryParse(rows[i][colIdx], NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                     {
-                        ws.Cell(row, c + 2).Value = val;
-                        ws.Cell(row, c + 2).Style.NumberFormat.Format = numberFormat;
+                        var cell = ws.Cells[row, c + 2];
+                        cell.Value = val;
+                        cell.Style.Numberformat.Format = numberFormat;
                     }
                 }
 
-                // Zebra striping
                 if (i % 2 == 1)
                 {
-                    ws.Range(row, 1, row, colIndices.Count + 1)
-                        .Style.Fill.BackgroundColor = XLColor.FromHtml("#FAFAFA");
+                    ws.Cells[row, 1, row, colIndices.Count + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    ws.Cells[row, 1, row, colIndices.Count + 1].Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#FAFAFA"));
                 }
             }
 
-            // ── Conditional formatting for data ───────────────────────────
-            if (rows.Count > 0)
-            {
-                ApplyConditionalFormatting(ws, dataStart, rows.Count, colIndices, headers, sensorType);
-            }
-
-            // ── Formatting ────────────────────────────────────────────────
             ws.Row(1).Height = 28;
-            ws.SheetView.FreezeRows(2);
+            ws.View.FreezePanes(3, 2);
             ws.Column(1).Width = 24;
             for (int c = 0; c < colIndices.Count; c++)
                 ws.Column(c + 2).Width = 18;
 
-            ws.RangeUsed()?.SetAutoFilter();
+            if (rows.Count > 0)
+            {
+                var dataRange = ws.Cells[dataStart, 1, dataStart + rows.Count - 1, colIndices.Count + 1];
+                dataRange.AutoFilter = true;
+
+                ApplyConditionalFormatting(ws, dataStart, rows.Count, colIndices, headers, sensorType);
+
+                GenerateCharts(ws, sheetName, rows.Count, colIndices.Count, dataStart, headers, colIndices, rows);
+            }
         }
 
-        // ── Raw data sheet ────────────────────────────────────────────────────
-
-        private static void CreateRawSheet(IXLWorkbook wb,
-            string[] headers, List<string[]> rows)
+        private static void GenerateCharts(ExcelWorksheet ws, string sheetName, int rowCount, int colCount, int dataStart, string[] headers, List<int> colIndices, List<string[]> rows)
         {
-            var ws = wb.AddWorksheet("Dados Brutos");
+            List<List<int>> chartGroups = new List<List<int>>();
+            foreach (int colIdx in colIndices)
+            {
+                var vals = GetNumericValues(rows, colIdx);
+                if (vals.Count == 0) continue;
+                
+                double avg = vals.Average();
+
+                var group = chartGroups.FirstOrDefault(g => 
+                {
+                    double firstAvg = GetNumericValues(rows, g[0]).Average();
+                    double maxAvg = Math.Max(Math.Abs(firstAvg), Math.Abs(avg));
+                    if (maxAvg == 0) return true; // ambos 0
+                    double diff = Math.Abs(firstAvg - avg) / maxAvg;
+                    return diff <= 0.25 && g.Count < 5;
+                });
+
+                if (group != null)
+                {
+                    group.Add(colIdx);
+                }
+                else
+                {
+                    chartGroups.Add(new List<int> { colIdx });
+                }
+            }
+
+            int chartStartRow = 1;
+            int chartStartCol = colCount + 3;
+
+            for (int chartIdx = 0; chartIdx < chartGroups.Count; chartIdx++)
+            {
+                var groupColIndices = chartGroups[chartIdx];
+
+                string chartTitle = chartGroups.Count > 1 ? $"{sheetName} (Grupo {chartIdx + 1})" : sheetName;
+                
+                // 1. Line Chart
+                var chart = ws.Drawings.AddLineChart($"LineChart_{sheetName.Replace(" ", "_")}_{chartIdx}", eLineChartType.Line);
+                chart.Title.Text = chartTitle + " - Histórico";
+                
+                int dynamicWidth = Math.Min(4000, 1100 + (rowCount * 3));
+                chart.SetPosition(chartStartRow, 0, chartStartCol, 0);
+                chart.SetSize(dynamicWidth, 500); 
+                chart.Legend.Position = eLegendPosition.Bottom;
+                chart.XAxis.Format = "HH:mm:ss";
+
+                // 2. Area Chart
+                var areaChart = ws.Drawings.AddAreaChart($"AreaChart_{sheetName.Replace(" ", "_")}_{chartIdx}", eAreaChartType.Area);
+                areaChart.Title.Text = chartTitle + " - Volume Acumulado";
+                areaChart.SetPosition(chartStartRow + 26, 0, chartStartCol, 0);
+                areaChart.SetSize(dynamicWidth, 400);
+                areaChart.Legend.Position = eLegendPosition.Bottom;
+                areaChart.XAxis.Format = "HH:mm:ss";
+
+                // 3. Column Chart
+                var colChart = ws.Drawings.AddBarChart($"ColChart_{sheetName.Replace(" ", "_")}_{chartIdx}", eBarChartType.ColumnClustered);
+                colChart.Title.Text = chartTitle + " - Mínimo, Médio e Máximo";
+                colChart.SetPosition(chartStartRow + 48, 0, chartStartCol, 0);
+                colChart.SetSize(dynamicWidth, 350);
+                colChart.Legend.Position = eLegendPosition.Bottom;
+
+                double globalMin = double.MaxValue;
+                double globalMax = double.MinValue;
+                
+                int statsStartRow = rowCount + dataStart + 5;
+                ws.Cells[statsStartRow, chartStartCol].Value = "Mínimo";
+                ws.Cells[statsStartRow + 1, chartStartCol].Value = "Médio";
+                ws.Cells[statsStartRow + 2, chartStartCol].Value = "Máximo";
+
+                for (int i = 0; i < groupColIndices.Count; i++)
+                {
+                    int colIdx = groupColIndices[i];
+                    int localColOffset = colIndices.IndexOf(colIdx) + 2; 
+
+                    var yRange = ws.Cells[dataStart, localColOffset, dataStart + rowCount - 1, localColOffset];
+                    var xRange = ws.Cells[dataStart, 1, dataStart + rowCount - 1, 1];
+                    string header = CleanColumnName(headers[colIdx]);
+
+                    // Add to Line Chart
+                    var series = chart.Series.Add(yRange, xRange);
+                    series.Header = header;
+                    var lineChartSeries = (ExcelLineChartSerie)series;
+                    lineChartSeries.Smooth = true;
+                    if (lineChartSeries.Marker != null)
+                        lineChartSeries.Marker.Style = eMarkerStyle.None;
+                    
+                    if (i < ChartColors.Length)
+                        lineChartSeries.Border.Fill.Color = ChartColors[i];
+
+                    // Add to Area Chart
+                    var areaSeries = areaChart.Series.Add(yRange, xRange);
+                    areaSeries.Header = header;
+                    if (i < ChartColors.Length)
+                        areaSeries.Fill.Color = ChartColors[i];
+
+                    // Prepare Column Chart
+                    var numericVals = GetNumericValues(rows, colIdx);
+                    if (numericVals.Count > 0)
+                    {
+                        double sMin = numericVals.Min();
+                        double sMax = numericVals.Max();
+                        double sAvg = numericVals.Average();
+
+                        int statCol = chartStartCol + i + 1;
+                        ws.Cells[statsStartRow - 1, statCol].Value = header;
+                        ws.Cells[statsStartRow, statCol].Value = sMin;
+                        ws.Cells[statsStartRow + 1, statCol].Value = sAvg;
+                        ws.Cells[statsStartRow + 2, statCol].Value = sMax;
+
+                        var colRange = ws.Cells[statsStartRow, statCol, statsStartRow + 2, statCol];
+                        var xNameRange = ws.Cells[statsStartRow, chartStartCol, statsStartRow + 2, chartStartCol];
+                        
+                        var barSeries = colChart.Series.Add(colRange, xNameRange);
+                        barSeries.Header = header;
+                        if (i < ChartColors.Length)
+                            barSeries.Fill.Color = ChartColors[i];
+
+                        globalMin = Math.Min(globalMin, sMin);
+                        globalMax = Math.Max(globalMax, sMax);
+                    }
+                }
+
+                if (globalMin != double.MaxValue && globalMax != double.MinValue)
+                {
+                    double padding = (globalMax - globalMin) * 0.15;
+                    if (padding == 0) padding = globalMax * 0.05;
+                    if (padding == 0) padding = 1;
+                    
+                    double finalMin = Math.Max(0, globalMin - padding);
+                    double finalMax = globalMax + padding;
+
+                    chart.YAxis.MinValue = finalMin; 
+                    chart.YAxis.MaxValue = finalMax;
+
+                    areaChart.YAxis.MinValue = finalMin;
+                    areaChart.YAxis.MaxValue = finalMax;
+                    
+                    colChart.YAxis.MinValue = finalMin;
+                    colChart.YAxis.MaxValue = finalMax;
+                }
+
+                chartStartRow += 68;
+            }
+        }
+
+        private static void CreateRawSheet(ExcelWorkbook wb, string[] headers, List<string[]> rows)
+        {
+            var ws = wb.Worksheets.Add("Dados Brutos");
 
             for (int c = 0; c < headers.Length; c++)
             {
-                ws.Cell(1, c + 1).Value = headers[c];
-                ws.Cell(1, c + 1).Style.Font.Bold = true;
-                ws.Cell(1, c + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#263238");
-                ws.Cell(1, c + 1).Style.Font.FontColor = XLColor.White;
+                var cell = ws.Cells[1, c + 1];
+                cell.Value = headers[c];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                cell.Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml("#263238"));
+                cell.Style.Font.Color.SetColor(Color.White);
             }
 
             for (int i = 0; i < rows.Count; i++)
             {
                 for (int c = 0; c < rows[i].Length; c++)
                 {
+                    var cell = ws.Cells[i + 2, c + 1];
                     if (c == 0)
                     {
-                        ws.Cell(i + 2, c + 1).Value = rows[i][c];
+                        cell.Value = rows[i][c];
                     }
                     else if (double.TryParse(rows[i][c], NumberStyles.Any, CultureInfo.InvariantCulture, out double val))
                     {
-                        ws.Cell(i + 2, c + 1).Value = val;
+                        cell.Value = val;
                     }
                     else
                     {
-                        ws.Cell(i + 2, c + 1).Value = rows[i][c];
+                        cell.Value = rows[i][c];
                     }
                 }
             }
 
-            ws.SheetView.FreezeRows(1);
-            ws.RangeUsed()?.SetAutoFilter();
+            ws.View.FreezePanes(2, 1);
+            ws.Cells[1, 1, rows.Count + 1, headers.Length].AutoFilter = true;
         }
 
-        // ── Helpers ───────────────────────────────────────────────────────────
-
-        private static void ApplyConditionalFormatting(IXLWorksheet ws, int dataStart, int rowCount, List<int> colIndices, string[] headers, string sensorType)
+        private static void ApplyConditionalFormatting(ExcelWorksheet ws, int dataStart, int rowCount, List<int> colIndices, string[] headers, string sensorType)
         {
             for (int c = 0; c < colIndices.Count; c++)
             {
                 string colName = headers[colIndices[c]];
-                var range = ws.Range(dataStart, c + 2, dataStart + rowCount - 1, c + 2);
+                var address = new ExcelAddress(dataStart, c + 2, dataStart + rowCount - 1, c + 2);
+                var cf = ws.ConditionalFormatting.AddThreeColorScale(address);
 
                 if (sensorType == "Temperature")
                 {
-                    // For temps: < 40 Green, ~75 Yellow, > 90 Red
-                    range.AddConditionalFormat().ColorScale()
-                        .Minimum(XLCFContentType.Number, "40", XLColor.FromHtml("#C8E6C9"))  // Green
-                        .Midpoint(XLCFContentType.Number, "75", XLColor.FromHtml("#FFF9C4")) // Yellow
-                        .Maximum(XLCFContentType.Number, "90", XLColor.FromHtml("#FFCDD2")); // Red
+                    cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                    cf.LowValue.Value = 40;
+                    cf.LowValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+                    
+                    cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                    cf.MiddleValue.Value = 75;
+                    cf.MiddleValue.Color = ColorTranslator.FromHtml("#FFF9C4");
+                    
+                    cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                    cf.HighValue.Value = 90;
+                    cf.HighValue.Color = ColorTranslator.FromHtml("#FFCDD2");
                 }
                 else if (sensorType == "Clock")
                 {
-                    // For Clocks (MHz): High is good (green), low is idle (yellowish)
-                    range.AddConditionalFormat().ColorScale()
-                        .Minimum(XLCFContentType.Percentile, "10", XLColor.FromHtml("#FFF9C4")) // Yellowish (idle)
-                        .Midpoint(XLCFContentType.Percentile, "50", XLColor.FromHtml("#E8F5E9")) // Light Green
-                        .Maximum(XLCFContentType.Percentile, "90", XLColor.FromHtml("#A5D6A7")); // Green (turbo)
+                    cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.LowValue.Value = 10;
+                    cf.LowValue.Color = ColorTranslator.FromHtml("#FFF9C4");
+
+                    cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.MiddleValue.Value = 50;
+                    cf.MiddleValue.Color = ColorTranslator.FromHtml("#E8F5E9");
+
+                    cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.HighValue.Value = 90;
+                    cf.HighValue.Color = ColorTranslator.FromHtml("#A5D6A7");
                 }
                 else if (sensorType == "Power")
                 {
-                    // Power: Informative. Lower is green, higher is orange.
-                    range.AddConditionalFormat().ColorScale()
-                        .Minimum(XLCFContentType.Percentile, "10", XLColor.FromHtml("#C8E6C9"))  // Green
-                        .Midpoint(XLCFContentType.Percentile, "50", XLColor.FromHtml("#FFF9C4")) // Yellow
-                        .Maximum(XLCFContentType.Percentile, "90", XLColor.FromHtml("#FFCC80")); // Orange
+                    cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.LowValue.Value = 10;
+                    cf.LowValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                    cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.MiddleValue.Value = 50;
+                    cf.MiddleValue.Color = ColorTranslator.FromHtml("#FFF9C4");
+
+                    cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.HighValue.Value = 90;
+                    cf.HighValue.Color = ColorTranslator.FromHtml("#FFCC80");
                 }
                 else if (sensorType == "Voltage")
                 {
                     if (colName.Contains("+12V"))
                     {
-                        // +12V tolerance is generally 11.4V to 12.6V
-                        range.AddConditionalFormat().ColorScale()
-                            .Minimum(XLCFContentType.Number, "11.4", XLColor.FromHtml("#FFCDD2"))  // Red (too low)
-                            .Midpoint(XLCFContentType.Number, "12.0", XLColor.FromHtml("#C8E6C9")) // Green (ideal)
-                            .Maximum(XLCFContentType.Number, "12.6", XLColor.FromHtml("#FFCDD2")); // Red (too high)
+                        cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.LowValue.Value = 11.4;
+                        cf.LowValue.Color = ColorTranslator.FromHtml("#FFCDD2");
+
+                        cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.MiddleValue.Value = 12.0;
+                        cf.MiddleValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                        cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.HighValue.Value = 12.6;
+                        cf.HighValue.Color = ColorTranslator.FromHtml("#FFCDD2");
                     }
                     else if (colName.Contains("+5V"))
                     {
-                        // +5V tolerance is generally 4.75V to 5.25V
-                        range.AddConditionalFormat().ColorScale()
-                            .Minimum(XLCFContentType.Number, "4.75", XLColor.FromHtml("#FFCDD2"))
-                            .Midpoint(XLCFContentType.Number, "5.0", XLColor.FromHtml("#C8E6C9"))
-                            .Maximum(XLCFContentType.Number, "5.25", XLColor.FromHtml("#FFCDD2"));
+                        cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.LowValue.Value = 4.75;
+                        cf.LowValue.Color = ColorTranslator.FromHtml("#FFCDD2");
+
+                        cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.MiddleValue.Value = 5.0;
+                        cf.MiddleValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                        cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.HighValue.Value = 5.25;
+                        cf.HighValue.Color = ColorTranslator.FromHtml("#FFCDD2");
                     }
-                    else if (colName.Contains("3VCC") || colName.Contains("3VSB") || colName.Contains("VBAT") || colName.Contains("AVSB"))
+                    else if (colName.Contains("3VCC") || colName.Contains("3VSB") || colName.Contains("VBAT") || colName.Contains("AVSB") || colName.Contains("3V"))
                     {
-                        // +3.3V tolerance is generally 3.13V to 3.47V
-                        range.AddConditionalFormat().ColorScale()
-                            .Minimum(XLCFContentType.Number, "3.13", XLColor.FromHtml("#FFCDD2"))
-                            .Midpoint(XLCFContentType.Number, "3.3", XLColor.FromHtml("#C8E6C9"))
-                            .Maximum(XLCFContentType.Number, "3.47", XLColor.FromHtml("#FFCDD2"));
+                        cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.LowValue.Value = 3.135;
+                        cf.LowValue.Color = ColorTranslator.FromHtml("#FFCDD2");
+
+                        cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.MiddleValue.Value = 3.3;
+                        cf.MiddleValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                        cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Num;
+                        cf.HighValue.Value = 3.465;
+                        cf.HighValue.Color = ColorTranslator.FromHtml("#FFCDD2");
                     }
                     else
                     {
-                        // VCore or other CPU/GPU voltages.
-                        // Gradient from Green (low/idle) to Yellow (mid) to Orange (high).
-                        range.AddConditionalFormat().ColorScale()
-                            .Minimum(XLCFContentType.Percentile, "10", XLColor.FromHtml("#C8E6C9"))
-                            .Midpoint(XLCFContentType.Percentile, "50", XLColor.FromHtml("#FFF9C4"))
-                            .Maximum(XLCFContentType.Percentile, "90", XLColor.FromHtml("#FFCC80"));
+                        cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                        cf.LowValue.Value = 10;
+                        cf.LowValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                        cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                        cf.MiddleValue.Value = 50;
+                        cf.MiddleValue.Color = ColorTranslator.FromHtml("#FFF9C4");
+
+                        cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                        cf.HighValue.Value = 90;
+                        cf.HighValue.Color = ColorTranslator.FromHtml("#FFCC80");
                     }
                 }
                 else
                 {
-                    // Fallback
-                    range.AddConditionalFormat().ColorScale()
-                        .Minimum(XLCFContentType.Percentile, "10", XLColor.FromHtml("#C8E6C9"))
-                        .Midpoint(XLCFContentType.Percentile, "50", XLColor.FromHtml("#FFF9C4"))
-                        .Maximum(XLCFContentType.Percentile, "90", XLColor.FromHtml("#FFCDD2"));
+                    cf.LowValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.LowValue.Value = 10;
+                    cf.LowValue.Color = ColorTranslator.FromHtml("#C8E6C9");
+
+                    cf.MiddleValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.MiddleValue.Value = 50;
+                    cf.MiddleValue.Color = ColorTranslator.FromHtml("#FFF9C4");
+
+                    cf.HighValue.Type = eExcelConditionalFormattingValueObjectType.Percentile;
+                    cf.HighValue.Value = 90;
+                    cf.HighValue.Color = ColorTranslator.FromHtml("#FFCDD2");
                 }
             }
         }
@@ -379,8 +603,6 @@ namespace Monitor_Pc.Utilities
 
         private static string CleanColumnName(string colName)
         {
-            // "CPU_Clock_Core_#0" → "Core #0"
-            // "GPU_Voltage_GPU_VDDC" → "GPU VDDC"
             var parts = colName.Split('_');
             if (parts.Length > 2)
             {

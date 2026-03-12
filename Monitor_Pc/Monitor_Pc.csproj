@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="EPPlus" Version="7.5.0" />
     <PackageReference Include="Hardware.Info" Version="101.1.1.1" />
   </ItemGroup>
 
