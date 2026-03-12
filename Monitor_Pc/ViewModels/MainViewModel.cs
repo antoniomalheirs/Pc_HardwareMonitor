@@ -35,10 +35,19 @@ namespace Monitor_Pc.ViewModels
         [ObservableProperty] private long   logEntryCount;
         [ObservableProperty] private string loggingStatusText = "Logger parado";
 
+        // ── Alert system ──────────────────────────────────────────────────────
+        public ObservableCollection<ActiveAlert> ActiveAlerts { get; } = new();
+        [ObservableProperty] private int    alertCount;
+        [ObservableProperty] private bool   hasAlerts;
+
+        // ── Configurable interval ─────────────────────────────────────────────
+        [ObservableProperty] private int    updateIntervalMs = 1000;
+        [ObservableProperty] private string intervalLabel    = "1s";
+
         public MainViewModel()
         {
             _fallback = new CpuFallbackTelemetry();
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(UpdateIntervalMs) };
             _timer.Tick += (_, _) => UpdateAll();
             UpdateAll();
             _timer.Start();
@@ -178,19 +187,22 @@ namespace Monitor_Pc.ViewModels
 
                         if (existingSensor == null)
                         {
-                            categoryObj.Sensors.Add(new HardwareSensor
+                            var newSensor = new HardwareSensor
                             {
                                 Name       = r.Label,
                                 SensorType = ToLhmType(r.Type),
                                 Unit       = r.Unit,
                                 SensorId   = sensorId,
                                 Value      = (float)r.Value
-                            });
+                            };
+                            newSensor.SetExternalMinMaxAvg(r.Min, r.Max, r.Avg);
+                            categoryObj.Sensors.Add(newSensor);
                         }
                         else
                         {
                             existingSensor.Unit  = r.Unit;
                             existingSensor.Value = (float)r.Value;
+                            existingSensor.SetExternalMinMaxAvg(r.Min, r.Max, r.Avg);
                         }
                         
                         // Stats detection
@@ -213,6 +225,9 @@ namespace Monitor_Pc.ViewModels
 
             if (bestTemp > 0) MaxTemp = $"{bestTemp:F0}°";
             if (bestLoad > 0) CpuLoad = $"{bestLoad:F0}%";
+
+            // ── Collect active alerts ─────────────────────────────────────
+            RefreshAlerts();
         }
 
         // ── Fallback path ─────────────────────────────────────────────────────
@@ -371,6 +386,104 @@ namespace Monitor_Pc.ViewModels
 
         private static HardwareSensor Mk(string name, string type, string unit, float value) =>
             new() { Name = name, SensorType = type, Unit = unit, SensorId = $"fb::{type}::{name}", Value = value };
+
+        // ── Alert helpers ──────────────────────────────────────────────────
+
+        private void RefreshAlerts()
+        {
+            var newAlerts = new List<ActiveAlert>();
+            foreach (var hw in HardwareItems)
+            {
+                foreach (var cat in hw.Categories)
+                {
+                    foreach (var s in cat.Sensors)
+                    {
+                        if (s.AlertLevel == AlertSeverity.Normal) continue;
+                        newAlerts.Add(new ActiveAlert
+                        {
+                            SensorName  = $"{hw.Name} · {s.Name}",
+                            Message     = s.AlertLevel == AlertSeverity.Critical
+                                ? $"{s.FormattedValue} — CRÍTICO"
+                                : $"{s.FormattedValue} — Atenção",
+                            Severity    = s.AlertLevel,
+                            Icon        = s.AlertLevel == AlertSeverity.Critical ? "🔴" : "🟡",
+                            Timestamp   = DateTime.Now
+                        });
+                    }
+                }
+            }
+
+            // Only update UI if alerts actually changed (avoid flicker)
+            bool changed = newAlerts.Count != ActiveAlerts.Count;
+            if (!changed)
+            {
+                for (int i = 0; i < newAlerts.Count; i++)
+                {
+                    if (newAlerts[i].SensorName != ActiveAlerts[i].SensorName ||
+                        newAlerts[i].Severity   != ActiveAlerts[i].Severity)
+                    {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (changed)
+            {
+                ActiveAlerts.Clear();
+                foreach (var a in newAlerts)
+                    ActiveAlerts.Add(a);
+            }
+            else
+            {
+                // Update messages in-place (value may change)
+                for (int i = 0; i < newAlerts.Count; i++)
+                {
+                    ActiveAlerts[i].Message = newAlerts[i].Message;
+                    ActiveAlerts[i].Icon    = newAlerts[i].Icon;
+                }
+            }
+
+            AlertCount = ActiveAlerts.Count;
+            HasAlerts  = AlertCount > 0;
+        }
+
+        // ── Configurable interval ──────────────────────────────────────────
+
+        [RelayCommand]
+        private void SetInterval(object? param)
+        {
+            int ms = 0;
+            if (param is string s && int.TryParse(s, out int parsed))
+                ms = parsed;
+            else if (param is int i)
+                ms = i;
+            else if (param is double d)
+                ms = (int)d;
+
+            if (ms >= 250 && ms <= 10000)
+            {
+                UpdateIntervalMs = ms;
+                _timer.Interval  = TimeSpan.FromMilliseconds(ms);
+                IntervalLabel = ms switch
+                {
+                    <= 500  => "0.5s",
+                    <= 1000 => "1s",
+                    <= 2000 => "2s",
+                    <= 5000 => "5s",
+                    _       => $"{ms / 1000}s"
+                };
+            }
+        }
+
+        [RelayCommand]
+        private void ResetAllStatistics()
+        {
+            foreach (var hw in HardwareItems)
+                foreach (var cat in hw.Categories)
+                    foreach (var s in cat.Sensors)
+                        s.ResetStatistics();
+        }
 
         // ── Logger commands ────────────────────────────────────────────────
 

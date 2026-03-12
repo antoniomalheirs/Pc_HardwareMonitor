@@ -6,7 +6,7 @@
         xmlns:viewmodels="clr-namespace:Monitor_Pc.ViewModels"
         xmlns:converters="clr-namespace:Monitor_Pc.Converters"
         mc:Ignorable="d"
-        Title="MONITOR PRO v4.0" Height="900" Width="1300"
+        Title="MONITOR PRO v5.0" Height="900" Width="1300"
         Background="#08080C" Foreground="#FFFFFF"
         FontFamily="Segoe UI Variable, Segoe UI"
         WindowStartupLocation="CenterScreen"
@@ -26,8 +26,10 @@
         <SolidColorBrush x:Key="CardBackground"    Color="#12121A"/>
         <SolidColorBrush x:Key="SidebarBackground" Color="#0A0A0F"/>
 
-        <converters:NullToVisibilityConverter x:Key="NullToVis"/>
-        <BooleanToVisibilityConverter         x:Key="BoolToVis"/>
+        <converters:NullToVisibilityConverter   x:Key="NullToVis"/>
+        <converters:PercentToWidthConverter      x:Key="PctToWidth"/>
+        <converters:StringToVisibilityConverter  x:Key="StrToVis"/>
+        <BooleanToVisibilityConverter            x:Key="BoolToVis"/>
 
         <!-- Converter for inverse bool: shows diagnostic panel only when HWiNFO is NOT active -->
         <Style x:Key="DiagPanel" TargetType="Border">
@@ -123,10 +125,11 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- alerts -->
+                        <RowDefinition Height="Auto"/>  <!-- readings -->
+                        <RowDefinition Height="Auto"/>  <!-- logger -->
+                        <RowDefinition Height="Auto"/>  <!-- diagnostic -->
+                        <RowDefinition Height="Auto"/>  <!-- data source -->
                     </Grid.RowDefinitions>
 
                     <!-- Logo -->
@@ -138,7 +141,7 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                         <TextBlock Text="MONITOR" FontSize="22" FontWeight="Black"/>
-                        <TextBlock Text="CORE ENGINE v4" FontSize="11" Foreground="#44FFFFFF" FontWeight="Bold" Margin="2,0,0,0"/>
+                        <TextBlock Text="CORE ENGINE v5" FontSize="11" Foreground="#44FFFFFF" FontWeight="Bold" Margin="2,0,0,0"/>
                     </StackPanel>
 
                     <!-- Nav -->
@@ -155,7 +158,7 @@
                     </StackPanel>
 
                     <!-- Stats (only when HWiNFO active) -->
-                    <StackPanel Grid.Row="2" Margin="0,0,0,20"
+                    <StackPanel Grid.Row="3" Margin="0,0,0,20"
                                 Visibility="{Binding HwInfoActive, Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="READINGS" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,12"/>
                         <Border Background="#08FFFFFF" CornerRadius="14" Padding="18,12"
@@ -176,12 +179,250 @@
                         </Border>
                     </StackPanel>
 
+                    <!-- ═══ ALERT PANEL ═══════════════════════════════════ -->
+                    <Border Grid.Row="2" Margin="0,0,0,20" Padding="18,14" CornerRadius="14"
+                            BorderThickness="1"
+                            Visibility="{Binding HasAlerts, Converter={StaticResource BoolToVis}}">
+                        <Border.Background>
+                            <SolidColorBrush Color="#1AFF5252"/>
+                        </Border.Background>
+                        <Border.BorderBrush>
+                            <SolidColorBrush Color="#44FF5252"/>
+                        </Border.BorderBrush>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Ellipse Width="10" Height="10" Fill="#FF5252" VerticalAlignment="Center">
+                                    <Ellipse.Effect>
+                                        <DropShadowEffect Color="#FF5252" BlurRadius="12" ShadowDepth="0"/>
+                                    </Ellipse.Effect>
+                                </Ellipse>
+                                <TextBlock Text="  ALERTAS" FontSize="10" FontWeight="Black"
+                                           Foreground="#FF5252" VerticalAlignment="Center"/>
+                                <Border Background="#33FF5252" CornerRadius="8" Padding="6,2" Margin="8,0,0,0">
+                                    <TextBlock Text="{Binding AlertCount}" FontSize="10" FontWeight="Black"
+                                               Foreground="#FF5252"/>
+                                </Border>
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding ActiveAlerts}" MaxHeight="200">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#08FFFFFF" CornerRadius="8" Padding="10,8" Margin="0,0,0,4">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Icon}" FontSize="10" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding SensorName}" FontSize="9" Foreground="#AAFFFFFF"
+                                                               Margin="6,0,0,0" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" MaxWidth="170"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Message}" FontSize="10" FontWeight="Bold"
+                                                           Margin="0,2,0,0">
+                                                    <TextBlock.Foreground>
+                                                        <SolidColorBrush Color="{Binding SeverityColor}"/>
+                                                    </TextBlock.Foreground>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ═══ LOGGER CONTROLS ═══════════════════════════════════ -->
-                    <StackPanel Grid.Row="3" Margin="0,0,0,20">
+                    <StackPanel Grid.Row="4" Margin="0,0,0,20">
                         <TextBlock Text="LOGGER" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="5,0,0,12"/>
                         <Border Background="#08FFFFFF" CornerRadius="14" Padding="18,14"
                                 BorderBrush="#10FFFFFF" BorderThickness="1">
                             <StackPanel>
+
+                                <!-- Interval selector -->
+                                <TextBlock Text="INTERVALO" FontSize="9" FontWeight="Black" Foreground="#22FFFFFF" Margin="0,0,0,8"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <Button Command="{Binding SetIntervalCommand}" CommandParameter="500" Margin="0,0,4,0"
+                                            Height="24" Padding="8,0" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#08FFFFFF"/>
+                                                <Setter Property="Foreground" Value="#66FFFFFF"/>
+                                                <Setter Property="FontSize" Value="9"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="#10FFFFFF"/>
+                                                <Setter Property="Content" Value="0.5s"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#1A00F2FF"/>
+                                                        <Setter Property="Foreground" Value="#00F2FF"/>
+                                                        <Setter Property="BorderBrush" Value="#3300F2FF"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding UpdateIntervalMs}" Value="500">
+                                                        <Setter Property="Background" Value="#3300F2FF"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                        <Setter Property="BorderBrush" Value="#00F2FF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Command="{Binding SetIntervalCommand}" CommandParameter="1000" Margin="0,0,4,0"
+                                            Height="24" Padding="8,0" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#1A00F2FF"/>
+                                                <Setter Property="Foreground" Value="#00F2FF"/>
+                                                <Setter Property="FontSize" Value="9"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="#3300F2FF"/>
+                                                <Setter Property="Content" Value="1s"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#3300F2FF"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding UpdateIntervalMs}" Value="1000">
+                                                        <Setter Property="Background" Value="#3300F2FF"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                        <Setter Property="BorderBrush" Value="#00F2FF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Command="{Binding SetIntervalCommand}" CommandParameter="2000" Margin="0,0,4,0"
+                                            Height="24" Padding="8,0" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#08FFFFFF"/>
+                                                <Setter Property="Foreground" Value="#66FFFFFF"/>
+                                                <Setter Property="FontSize" Value="9"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="#10FFFFFF"/>
+                                                <Setter Property="Content" Value="2s"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#1A00F2FF"/>
+                                                        <Setter Property="Foreground" Value="#00F2FF"/>
+                                                        <Setter Property="BorderBrush" Value="#3300F2FF"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding UpdateIntervalMs}" Value="2000">
+                                                        <Setter Property="Background" Value="#3300F2FF"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                        <Setter Property="BorderBrush" Value="#00F2FF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Command="{Binding SetIntervalCommand}" CommandParameter="5000"
+                                            Height="24" Padding="8,0" Cursor="Hand">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#08FFFFFF"/>
+                                                <Setter Property="Foreground" Value="#66FFFFFF"/>
+                                                <Setter Property="FontSize" Value="9"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="BorderThickness" Value="1"/>
+                                                <Setter Property="BorderBrush" Value="#10FFFFFF"/>
+                                                <Setter Property="Content" Value="5s"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}"
+                                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#1A00F2FF"/>
+                                                        <Setter Property="Foreground" Value="#00F2FF"/>
+                                                        <Setter Property="BorderBrush" Value="#3300F2FF"/>
+                                                    </Trigger>
+                                                    <DataTrigger Binding="{Binding UpdateIntervalMs}" Value="5000">
+                                                        <Setter Property="Background" Value="#3300F2FF"/>
+                                                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                        <Setter Property="BorderBrush" Value="#00F2FF"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
+
+                                <!-- Reset min/max button -->
+                                <Button Command="{Binding ResetAllStatisticsCommand}" Margin="0,0,0,12"
+                                        Height="24" HorizontalAlignment="Stretch" Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Background" Value="#08FFFFFF"/>
+                                            <Setter Property="Foreground" Value="#55FFFFFF"/>
+                                            <Setter Property="FontSize" Value="9"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Content" Value="🔄  RESET MIN/MAX"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="6" Padding="8,4">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#12FFFFFF"/>
+                                                    <Setter Property="Foreground" Value="#AAFFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Border Height="1" Background="#10FFFFFF" Margin="0,0,0,12"/>
                                 <!-- Status indicator + Toggle -->
                                 <Grid Margin="0,0,0,10">
                                     <Grid.ColumnDefinitions>
@@ -373,7 +614,7 @@
                     </StackPanel>
 
                     <!-- ⚠️ Diagnostic panel — shows ONLY when HWiNFO is not connected -->
-                    <Border Grid.Row="4" Style="{StaticResource DiagPanel}"
+                    <Border Grid.Row="5" Style="{StaticResource DiagPanel}"
                             Margin="0,0,0,20" Padding="18,16" CornerRadius="16"
                             Background="#1AFF9E00" BorderBrush="#44FF9E00" BorderThickness="1">
                         <StackPanel>
@@ -407,7 +648,7 @@
                     </Border>
 
                     <!-- Data source indicator -->
-                    <Border Grid.Row="5" Padding="20,18" CornerRadius="20"
+                    <Border Grid.Row="6" Padding="20,18" CornerRadius="20"
                             Background="#08FFFFFF" BorderBrush="#08FFFFFF" BorderThickness="1">
                         <StackPanel>
                             <TextBlock Text="DATA SOURCE" FontSize="9" FontWeight="Black" Foreground="#33FFFFFF" Margin="0,0,0,10"/>
@@ -462,7 +703,7 @@
             <!-- Title bar -->
             <Grid Grid.Row="0" Background="#10FFFFFF" Height="32"
                   MouseLeftButtonDown="Header_MouseLeftButtonDown">
-                <TextBlock Text="MONITOR PRO v4.0" FontSize="11" Foreground="#44FFFFFF"
+                <TextBlock Text="MONITOR PRO v5.0" FontSize="11" Foreground="#44FFFFFF"
                            VerticalAlignment="Center" Margin="25,0,0,0" FontWeight="Bold" IsHitTestVisible="False"/>
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button x:Name="BtnMinimize" Click="BtnMinimize_Click" Style="{StaticResource TBtn}"      Content="─"/>
@@ -576,17 +817,66 @@
                                                         <ItemsControl ItemsSource="{Binding Sensors}">
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate>
-                                                                    <Grid Margin="0,0,0,6">
+                                                                    <Grid Margin="0,0,0,8">
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="150"/>
-                                                                            <ColumnDefinition Width="Auto"/>
+                                                                            <ColumnDefinition Width="*"/>
                                                                         </Grid.ColumnDefinitions>
-                                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SensorName}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="140"/>
-                                                                        <TextBlock Grid.Column="1" Text="{Binding FormattedValue}" Style="{StaticResource SensorValue}" FontWeight="Bold" VerticalAlignment="Center">
-                                                                            <TextBlock.Foreground>
-                                                                                <SolidColorBrush Color="{Binding DataContext.AccentColor, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"/>
-                                                                            </TextBlock.Foreground>
-                                                                        </TextBlock>
+
+                                                                        <!-- Sensor name -->
+                                                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                                                   Text="{Binding Name}" Style="{StaticResource SensorName}"
+                                                                                   VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="140"/>
+
+                                                                        <!-- Sensor value with alert color -->
+                                                                        <StackPanel Grid.Row="0" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding FormattedValue}" FontWeight="Bold">
+                                                                                <TextBlock.Foreground>
+                                                                                    <SolidColorBrush Color="{Binding DataContext.AccentColor, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"/>
+                                                                                </TextBlock.Foreground>
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource SensorValue}">
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding AlertLevel}" Value="Critical">
+                                                                                                <Setter Property="Foreground" Value="#FF5252"/>
+                                                                                                <Setter Property="Effect">
+                                                                                                    <Setter.Value>
+                                                                                                        <DropShadowEffect Color="#FF5252" BlurRadius="8" ShadowDepth="0"/>
+                                                                                                    </Setter.Value>
+                                                                                                </Setter>
+                                                                                            </DataTrigger>
+                                                                                            <DataTrigger Binding="{Binding AlertLevel}" Value="Warning">
+                                                                                                <Setter Property="Foreground" Value="#FFD740"/>
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                        </StackPanel>
+
+                                                                        <!-- Progress bar (only for temp/load/fan) -->
+                                                                        <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                                                Height="4" CornerRadius="2" Margin="0,4,0,0"
+                                                                                Background="#10FFFFFF"
+                                                                                Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}">
+                                                                            <Border HorizontalAlignment="Left" CornerRadius="2" Height="4"
+                                                                                    Width="{Binding ProgressPercent, Converter={StaticResource PctToWidth}}">
+                                                                                <Border.Background>
+                                                                                    <SolidColorBrush Color="{Binding ProgressColor}"/>
+                                                                                </Border.Background>
+                                                                            </Border>
+                                                                        </Border>
+
+                                                                        <!-- Min/Max display -->
+                                                                        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                                                   Text="{Binding FormattedMinMax}"
+                                                                                   FontSize="9" Foreground="#33FFFFFF" Margin="0,2,0,0"
+                                                                                   Visibility="{Binding FormattedMinMax, Converter={StaticResource StrToVis}}"/>
                                                                     </Grid>
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>

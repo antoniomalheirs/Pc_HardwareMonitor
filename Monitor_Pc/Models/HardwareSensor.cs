@@ -15,6 +15,23 @@ namespace Monitor_Pc.Models
         [ObservableProperty] private HardwareSensor? linkedSensor;
         [ObservableProperty] private string combinedValue = "--";
 
+        // ── Min / Max / Avg tracking ─────────────────────────────────────────
+        [ObservableProperty] private float? minValue;
+        [ObservableProperty] private float? maxValue;
+        [ObservableProperty] private float? avgValue;
+        [ObservableProperty] private string formattedMinMax = "";
+        private double _avgAccum;
+        private long   _avgCount;
+
+        // ── Alert severity ───────────────────────────────────────────────────
+        [ObservableProperty] private AlertSeverity alertLevel = AlertSeverity.Normal;
+        [ObservableProperty] private string alertColor = "Transparent";
+
+        // ── Progress bar ─────────────────────────────────────────────────────
+        [ObservableProperty] private double progressPercent;
+        [ObservableProperty] private string progressColor = "#4CAF50";  // green default
+        [ObservableProperty] private bool   showProgressBar;
+
         public bool IsValid =>
             Value.HasValue &&
             !float.IsNaN(Value.Value) &&
@@ -23,6 +40,101 @@ namespace Monitor_Pc.Models
         partial void OnUnitChanged(string value) => RefreshFormattedValue();
         partial void OnValueChanged(float? value) => RefreshFormattedValue();
 
+        /// <summary>Reset min/max/avg tracking.</summary>
+        public void ResetStatistics()
+        {
+            MinValue = null;
+            MaxValue = null;
+            AvgValue = null;
+            _avgAccum = 0;
+            _avgCount = 0;
+            FormattedMinMax = "";
+        }
+
+        private void UpdateMinMaxAvg(float v)
+        {
+            if (!MinValue.HasValue || v < MinValue.Value) MinValue = v;
+            if (!MaxValue.HasValue || v > MaxValue.Value) MaxValue = v;
+
+            _avgAccum += v;
+            _avgCount++;
+            AvgValue = (float)(_avgAccum / _avgCount);
+
+            FormattedMinMax = $"▼ {FormatCompact(MinValue.Value)}  ▲ {FormatCompact(MaxValue.Value)}";
+        }
+
+        /// <summary>Set min/max/avg from external source (e.g., HWiNFO).</summary>
+        public void SetExternalMinMaxAvg(double min, double max, double avg)
+        {
+            if (min != 0 || max != 0)
+            {
+                MinValue = (float)min;
+                MaxValue = (float)max;
+                AvgValue = (float)avg;
+                FormattedMinMax = $"▼ {FormatCompact((float)min)}  ▲ {FormatCompact((float)max)}";
+            }
+        }
+
+        private string FormatCompact(float v)
+        {
+            string u = Unit?.Trim() ?? "";
+            if (u.Equals("MHz", StringComparison.OrdinalIgnoreCase) || SensorType == "Clock")
+                return v >= 1000 ? $"{v / 1000f:F1}G" : $"{v:F0}M";
+            if (u.Equals("°C") || u.Equals("C") || SensorType == "Temperature")
+                return $"{v:F0}°";
+            if (u.Equals("%") || SensorType == "Load")
+                return $"{v:F0}%";
+            if (u.Equals("V") || SensorType == "Voltage")
+                return $"{v:F3}V";
+            if (u.Equals("W") || SensorType == "Power")
+                return $"{v:F0}W";
+            if (SensorType == "Fan")
+                return $"{v:F0}";
+            return v.ToString("F1");
+        }
+
+        private void UpdateAlertAndProgress(float v)
+        {
+            // ── Alert evaluation ─────────────────────────────────────────
+            AlertLevel = AlertThresholds.Evaluate(SensorType, Name, v);
+            AlertColor = AlertLevel switch
+            {
+                AlertSeverity.Critical => "#FF5252",
+                AlertSeverity.Warning  => "#FFD740",
+                _                      => "Transparent"
+            };
+
+            // ── Progress bar ─────────────────────────────────────────────
+            bool shouldShow = SensorType is "Temperature" or "Load" or "Fan";
+            ShowProgressBar = shouldShow;
+            if (!shouldShow) return;
+
+            double pct;
+            if (SensorType == "Temperature")
+            {
+                pct = Math.Clamp((v - 25) / 80.0 * 100.0, 0, 100);
+            }
+            else if (SensorType == "Load")
+            {
+                pct = Math.Clamp(v, 0, 100);
+            }
+            else // Fan
+            {
+                pct = Math.Clamp(v / 3000.0 * 100.0, 0, 100);
+            }
+            ProgressPercent = pct;
+
+            // Gradient: green (0%) → yellow (60%) → red (100%)
+            ProgressColor = pct switch
+            {
+                >= 85 => "#FF5252",
+                >= 70 => "#FF9800",
+                >= 55 => "#FFC107",
+                >= 40 => "#FFEB3B",
+                _     => "#4CAF50"
+            };
+        }
+
         private void RefreshFormattedValue()
         {
             var val = Value;
@@ -30,6 +142,9 @@ namespace Monitor_Pc.Models
             {
                 FormattedValue  = "--";
                 ValuePercentage = 0;
+                ShowProgressBar = false;
+                AlertLevel      = AlertSeverity.Normal;
+                AlertColor      = "Transparent";
             }
             else
             {
@@ -125,6 +240,8 @@ namespace Monitor_Pc.Models
                     }
                 }
 
+                UpdateMinMaxAvg(v);
+                UpdateAlertAndProgress(v);
                 UpdateCombinedValue();
             }
         }
